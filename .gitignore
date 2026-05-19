@@ -1,0 +1,53 @@
+# ── Build output ──────────────────────────────────────────────────────────────
+target/
+build/
+
+# ── Maven ─────────────────────────────────────────────────────────────────────
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd
+
+# ── Eclipse / STS ─────────────────────────────────────────────────────────────
+.metadata/
+.classpath
+.project
+.settings/
+.sts4-cache/
+*.launch
+*.prefs
+bin/
+tmp/
+
+# ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ── VS Code ───────────────────────────────────────────────────────────────────
+.vscode/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Java ──────────────────────────────────────────────────────────────────────
+*.class
+*.jar
+*.war
+*.ear
+
+# ── Temp files ────────────────────────────────────────────────────────────────
+*.tmp
+*.temp
+
+# ── Sensitive config files (DO NOT PUSH) ──────────────────────────────────────
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+src/main/resources/application-test.properties
+*.envssrc/main/resources/application.properties

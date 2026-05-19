@@ -1,0 +1,14 @@
+package com.mkr.commerce.user.enums;
+
+public enum AuditAction {
+    ACCOUNT_CREATED,
+    INVITATION_SENT,
+    INVITATION_RESENT,
+    INVITATION_ACCEPTED,
+    ACCOUNT_ACTIVATED,
+    ACCOUNT_DEACTIVATED,
+    ROLE_CHANGED,
+    PROFILE_UPDATED,
+    PASSWORD_RESET,
+    LOGIN
+}
