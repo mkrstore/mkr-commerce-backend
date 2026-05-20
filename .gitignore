@@ -46,8 +46,6 @@ logs/
 *.temp
 
 # ── Sensitive config files (DO NOT PUSH) ──────────────────────────────────────
-src/main/resources/application.properties
 src/main/resources/application-dev.properties
-src/main/resources/application-prod.properties
 src/main/resources/application-test.properties
-*.envssrc/main/resources/application.properties
+src/main/resources/application-prod.properties
