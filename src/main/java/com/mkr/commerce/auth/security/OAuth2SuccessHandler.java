@@ -53,7 +53,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
             Cookie cookie = new Cookie(REFRESH_COOKIE, pair.rawRefreshToken());
             cookie.setHttpOnly(true);
-            cookie.setSecure(false);
+            cookie.setSecure(true);
+            cookie.setAttribute("SameSite", "None");
             cookie.setPath("/api/auth");
             cookie.setMaxAge((int) (refreshTokenExpiryMs / 1000));
             response.addCookie(cookie);

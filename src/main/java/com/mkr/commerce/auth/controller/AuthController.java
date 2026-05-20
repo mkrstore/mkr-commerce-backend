@@ -140,8 +140,9 @@ public class AuthController {
     private void writeRefreshCookie(HttpServletResponse response, String tokenValue) {
         Cookie cookie = new Cookie(REFRESH_COOKIE, tokenValue);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false);         // true in production (HTTPS only)
-        cookie.setPath("/api/auth");     // browser only sends it to auth endpoints
+        cookie.setSecure(true);
+        cookie.setAttribute("SameSite", "None");
+        cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (refreshTokenExpiryMs / 1000));
         response.addCookie(cookie);
     }
