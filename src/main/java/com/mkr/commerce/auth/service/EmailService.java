@@ -1,6 +1,5 @@
 package com.mkr.commerce.auth.service;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,8 +63,8 @@ public class EmailService {
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-        } catch (MessagingException ex) {
-            log.error("Failed to send email to {}: {}", to, ex.getMessage());
+        } catch (Exception ex) {
+            log.error("Failed to send email to {} ({}): {}", to, ex.getClass().getSimpleName(), ex.getMessage());
         }
     }
 
