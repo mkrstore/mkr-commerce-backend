@@ -1,27 +1,25 @@
 package com.mkr.commerce.auth.service;
 
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-/**
- * Sends transactional emails to staff.
- *
- * All send methods are @Async so they never block the HTTP request.
- * Failures are logged but not propagated — the user-facing response
- * should not fail just because SMTP is slow.
- */
+import java.util.List;
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private final RestTemplate restTemplate;
+
+    @Value("${resend.api-key}")
+    private String resendApiKey;
 
     @Value("${app.mail.from}")
     private String fromAddress;
@@ -38,7 +36,7 @@ public class EmailService {
     public void sendPasswordResetEmail(String toEmail, String toName, String resetToken) {
         String resetLink = baseUrl + "/reset-password?token=" + resetToken;
         String html = buildPasswordResetHtml(toName, resetLink);
-        sendHtmlEmailFrom(noReplyAddress, toEmail, "Reset your MKR Commerce password", html);
+        sendHtmlEmail(noReplyAddress, toEmail, "Reset your MKR Commerce password", html);
         log.info("Password reset email sent to: {}", toEmail);
     }
 
@@ -48,21 +46,33 @@ public class EmailService {
     public void sendInvitationEmail(String toEmail, String toName, String invitedByName, String invitationToken) {
         String setPasswordLink = baseUrl + "/set-password?token=" + invitationToken;
         String html = buildInvitationHtml(toName, invitedByName, toEmail, setPasswordLink);
-        sendHtmlEmailFrom(noReplyAddress, toEmail, "You've been invited to MKR Commerce Admin", html);
+        sendHtmlEmail(noReplyAddress, toEmail, "You've been invited to MKR Commerce Admin", html);
         log.info("Invitation email sent to: {}", toEmail);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private void sendHtmlEmailFrom(String from, String to, String subject, String htmlBody) {
+    private void sendHtmlEmail(String from, String to, String subject, String htmlBody) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(from);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-            mailSender.send(message);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
+
+            Map<String, Object> payload = Map.of(
+                "from", from,
+                "to", List.of(to),
+                "subject", subject,
+                "html", htmlBody
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                "https://api.resend.com/emails", request, String.class
+            );
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                log.error("Resend API error for {} — status: {}, body: {}", to, response.getStatusCode(), response.getBody());
+            }
         } catch (Exception ex) {
             log.error("Failed to send email to {} ({}): {}", to, ex.getClass().getSimpleName(), ex.getMessage());
         }
