@@ -9,6 +9,7 @@ import com.mkr.commerce.user.dto.AuditLogDto;
 import com.mkr.commerce.user.dto.CreateStaffRequest;
 import com.mkr.commerce.user.dto.StaffDto;
 import com.mkr.commerce.user.dto.UpdateRoleRequest;
+import com.mkr.commerce.user.dto.UpdateStaffRequest;
 import com.mkr.commerce.user.dto.UpdateStatusRequest;
 import com.mkr.commerce.user.entity.InvitationToken;
 import com.mkr.commerce.user.entity.User;
@@ -225,6 +226,42 @@ public class UserService {
 
         log.info("Role changed: {} {} → {} by {}",
                 staff.getEmail(), oldRole, request.role(), actor.getEmail());
+    }
+
+    // ── Update Staff (contact / address / name) ───────────────────────────────
+
+    @Transactional
+    public StaffDto updateStaff(UUID id, UpdateStaffRequest request, User actor) {
+        User staff = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found"));
+
+        assertCanManage(actor, staff);
+
+        if (request.firstName()  != null) staff.setFirstName(request.firstName().trim());
+        if (request.middleName() != null) staff.setMiddleName(request.middleName().isBlank() ? null : request.middleName().trim());
+        if (request.lastName()   != null) staff.setLastName(request.lastName().trim());
+
+        if (request.email() != null) {
+            String email = request.email().toLowerCase().trim();
+            if (!email.equals(staff.getEmail()) && userRepository.existsByEmail(email)) {
+                throw new BadRequestException("An account with this email already exists.", ErrorCode.DUPLICATE_EMAIL);
+            }
+            staff.setEmail(email);
+        }
+
+        if (request.department()      != null) staff.setDepartment(request.department().trim());
+        if (request.mobileNumber()    != null) staff.setMobileNumber(normalizePhone(request.mobileNumber()));
+        if (request.alternativePhone() != null) staff.setAlternativePhone(request.alternativePhone().isBlank() ? null : normalizePhone(request.alternativePhone()));
+
+        if (request.addressBuilding()   != null) staff.setAddressBuilding(request.addressBuilding().isBlank()   ? null : request.addressBuilding().trim());
+        if (request.addressStreet()     != null) staff.setAddressStreet(request.addressStreet().isBlank()       ? null : request.addressStreet().trim());
+        if (request.addressCity()       != null) staff.setAddressCity(request.addressCity().isBlank()           ? null : request.addressCity().trim());
+        if (request.addressState()      != null) staff.setAddressState(request.addressState().isBlank()         ? null : request.addressState().trim());
+        if (request.addressPostalCode() != null) staff.setAddressPostalCode(request.addressPostalCode().isBlank() ? null : request.addressPostalCode().trim());
+        if (request.addressCountry()    != null) staff.setAddressCountry(request.addressCountry().isBlank()     ? null : request.addressCountry().trim());
+
+        staff.composeName();
+        return StaffDto.from(userRepository.save(staff));
     }
 
     // ── Resend Invitation ─────────────────────────────────────────────────────

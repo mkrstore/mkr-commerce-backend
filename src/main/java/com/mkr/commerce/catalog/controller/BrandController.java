@@ -7,9 +7,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -50,6 +52,22 @@ public class BrandController {
             @Valid @RequestBody UpdateBrandRequest req
     ) {
         return ResponseEntity.ok(ApiResponse.ok("Brand updated", brandService.update(id, req)));
+    }
+
+    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
+    public ResponseEntity<ApiResponse<BrandDto>> uploadLogo(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "type", defaultValue = "image") String type
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("Logo uploaded", brandService.uploadLogo(id, file, "video".equalsIgnoreCase(type))));
+    }
+
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
+    public ResponseEntity<ApiResponse<BrandDto>> removeLogo(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok("Logo removed", brandService.removeLogo(id)));
     }
 
     @DeleteMapping("/{id}")

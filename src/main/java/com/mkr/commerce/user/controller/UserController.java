@@ -80,6 +80,19 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Staff member", userService.getStaff(id, currentUser)));
     }
 
+    // ── PATCH /api/users/{id} — update contact / address / name ─────────────
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES')")
+    public ResponseEntity<ApiResponse<StaffDto>> updateStaff(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateStaffRequest request,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        StaffDto updated = userService.updateStaff(id, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("Staff member updated.", updated));
+    }
+
     // ── PATCH /api/users/{id}/status — activate or deactivate ────────────────
 
     @PatchMapping("/{id}/status")

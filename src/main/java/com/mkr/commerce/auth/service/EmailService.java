@@ -36,8 +36,12 @@ public class EmailService {
     public void sendPasswordResetEmail(String toEmail, String toName, String resetToken) {
         String resetLink = baseUrl + "/reset-password?token=" + resetToken;
         String html = buildPasswordResetHtml(toName, resetLink);
-        sendHtmlEmail(noReplyAddress, toEmail, "Reset your MKR Commerce password", html);
-        log.info("Password reset email sent to: {}", toEmail);
+        boolean sent = sendHtmlEmail(noReplyAddress, toEmail, "Reset your MKR Commerce password", html);
+        if (sent) {
+            log.info("Password reset email sent to: {}", toEmail);
+        } else {
+            log.warn("Password reset email failed for: {} — use this link directly: {}", toEmail, resetLink);
+        }
     }
 
     // ── Staff Invitation ──────────────────────────────────────────────────
@@ -46,13 +50,17 @@ public class EmailService {
     public void sendInvitationEmail(String toEmail, String toName, String invitedByName, String invitationToken) {
         String setPasswordLink = baseUrl + "/set-password?token=" + invitationToken;
         String html = buildInvitationHtml(toName, invitedByName, toEmail, setPasswordLink);
-        sendHtmlEmail(noReplyAddress, toEmail, "You've been invited to MKR Commerce Admin", html);
-        log.info("Invitation email sent to: {}", toEmail);
+        boolean sent = sendHtmlEmail(noReplyAddress, toEmail, "You've been invited to MKR Commerce Admin", html);
+        if (sent) {
+            log.info("Invitation email sent to: {}", toEmail);
+        } else {
+            log.warn("Invitation email failed for: {} — use this link directly: {}", toEmail, setPasswordLink);
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private void sendHtmlEmail(String from, String to, String subject, String htmlBody) {
+    private boolean sendHtmlEmail(String from, String to, String subject, String htmlBody) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -72,9 +80,12 @@ public class EmailService {
 
             if (!response.getStatusCode().is2xxSuccessful()) {
                 log.error("Resend API error for {} — status: {}, body: {}", to, response.getStatusCode(), response.getBody());
+                return false;
             }
+            return true;
         } catch (Exception ex) {
             log.error("Failed to send email to {} ({}): {}", to, ex.getClass().getSimpleName(), ex.getMessage());
+            return false;
         }
     }
 

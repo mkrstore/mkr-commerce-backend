@@ -31,6 +31,10 @@ public class Category extends BaseEntity {
     @Column(name = "image_public_id", length = 200)
     private String imagePublicId;
 
+    @Column(name = "image_is_video", columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean imageIsVideo = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parent;

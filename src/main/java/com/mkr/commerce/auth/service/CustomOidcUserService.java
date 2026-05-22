@@ -2,6 +2,7 @@ package com.mkr.commerce.auth.service;
 
 import com.mkr.commerce.auth.security.OidcUserPrincipal;
 import com.mkr.commerce.user.entity.User;
+import com.mkr.commerce.user.repository.InvitationTokenRepository;
 import com.mkr.commerce.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -25,8 +27,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest, OidcUser> {
 
-    private final UserRepository  userRepository;
-    private final OidcUserService delegate = new OidcUserService();
+    private final UserRepository           userRepository;
+    private final InvitationTokenRepository invitationTokenRepository;
+    private final OidcUserService           delegate = new OidcUserService();
 
     @Override
     public OidcUser loadUser(OidcUserRequest request) throws OAuth2AuthenticationException {
@@ -48,9 +51,16 @@ public class CustomOidcUserService implements OAuth2UserService<OidcUserRequest,
                         "No staff account found for " + email + ". Contact your administrator."));
 
         if (!user.isActive()) {
-            throw new OAuth2AuthenticationException(
-                    new OAuth2Error("account_deactivated"),
-                    "Your account has been deactivated. Contact your administrator.");
+            // Distinguish: pending invitation (never activated) vs explicitly deactivated by admin
+            boolean hasPendingInvitation = invitationTokenRepository
+                    .findActiveByUser(user, Instant.now()).isPresent();
+            if (!hasPendingInvitation) {
+                throw new OAuth2AuthenticationException(
+                        new OAuth2Error("account_deactivated"),
+                        "Your account has been deactivated. Contact your administrator.");
+            }
+            // User has a pending invitation — allow Google sign-in, success handler will redirect to set-password
+            log.info("Google sign-in for pending user: {} — will redirect to set-password", user.getEmail());
         }
 
         if (user.getGoogleId() == null) {

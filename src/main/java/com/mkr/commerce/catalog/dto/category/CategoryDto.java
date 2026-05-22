@@ -12,6 +12,7 @@ public record CategoryDto(
         String                      slug,
         String                      description,
         String                      imageUrl,
+        boolean                     imageIsVideo,
         UUID                        parentId,
         String                      parentName,
         int                         sortOrder,
@@ -22,7 +23,8 @@ public record CategoryDto(
 ) {
     public static CategoryDto from(Category c) {
         return new CategoryDto(
-                c.getId(), c.getName(), c.getSlug(), c.getDescription(), c.getImageUrl(),
+                c.getId(), c.getName(), c.getSlug(), c.getDescription(),
+                c.getImageUrl(), c.isImageIsVideo(),
                 c.getParent() != null ? c.getParent().getId()   : null,
                 c.getParent() != null ? c.getParent().getName() : null,
                 c.getSortOrder(), c.isActive(),

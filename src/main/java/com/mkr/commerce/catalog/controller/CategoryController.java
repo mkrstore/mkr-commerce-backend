@@ -7,9 +7,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -90,6 +92,23 @@ public class CategoryController {
             @Valid @RequestBody UpdateAttributeDefinitionRequest req
     ) {
         return ResponseEntity.ok(ApiResponse.ok("Attribute updated", categoryService.updateAttribute(id, attrId, req)));
+    }
+
+    @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
+    public ResponseEntity<ApiResponse<CategoryDto>> uploadImage(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "type", defaultValue = "image") String type
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("Image uploaded",
+                categoryService.uploadImage(id, file, "video".equalsIgnoreCase(type))));
+    }
+
+    @DeleteMapping("/{id}/image")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
+    public ResponseEntity<ApiResponse<CategoryDto>> removeImage(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok("Image removed", categoryService.removeImage(id)));
     }
 
     @DeleteMapping("/{id}/attributes/{attrId}")

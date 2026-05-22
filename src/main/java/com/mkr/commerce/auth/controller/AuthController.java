@@ -28,6 +28,9 @@ public class AuthController {
     @Value("${app.jwt.refresh-token-expiry-ms}")
     private long refreshTokenExpiryMs;
 
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
     // ── POST /api/auth/login ──────────────────────────────────────────────
 
     @PostMapping("/login")
@@ -135,13 +138,27 @@ public class AuthController {
                 "Account activated. You can now log in with your company email and new password."));
     }
 
+    // ── POST /api/auth/first-password ─────────────────────────────────────
+    // Dev-env flow: new staff with pending invitation sets password without
+    // the email link (used when email delivery is unavailable in dev).
+
+    @PostMapping("/first-password")
+    public ResponseEntity<ApiResponse<LoginResponse>> firstPassword(
+            @Valid @RequestBody FirstPasswordRequest request,
+            HttpServletResponse response
+    ) {
+        AuthTokenPair pair = authService.setFirstPassword(request);
+        writeRefreshCookie(response, pair.rawRefreshToken());
+        return ResponseEntity.ok(ApiResponse.ok("Account activated. Welcome!", pair.toLoginResponse()));
+    }
+
     // ── Cookie helpers ────────────────────────────────────────────────────
 
     private void writeRefreshCookie(HttpServletResponse response, String tokenValue) {
         Cookie cookie = new Cookie(REFRESH_COOKIE, tokenValue);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setAttribute("SameSite", "None");
+        cookie.setSecure(cookieSecure);
+        cookie.setAttribute("SameSite", cookieSecure ? "None" : "Lax");
         cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (refreshTokenExpiryMs / 1000));
         response.addCookie(cookie);

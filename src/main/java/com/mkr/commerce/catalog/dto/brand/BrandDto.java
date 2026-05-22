@@ -10,6 +10,7 @@ public record BrandDto(
         String  name,
         String  slug,
         String  logoUrl,
+        boolean logoIsVideo,
         String  description,
         boolean isActive,
         Instant createdAt,
@@ -17,7 +18,7 @@ public record BrandDto(
 ) {
     public static BrandDto from(Brand b) {
         return new BrandDto(
-                b.getId(), b.getName(), b.getSlug(), b.getLogoUrl(),
+                b.getId(), b.getName(), b.getSlug(), b.getLogoUrl(), b.isLogoIsVideo(),
                 b.getDescription(), b.isActive(), b.getCreatedAt(), b.getUpdatedAt()
         );
     }

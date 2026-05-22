@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.mkr.commerce.common.exception.ApiException;
 import com.mkr.commerce.common.exception.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class CloudinaryService {
 
@@ -56,11 +58,12 @@ public class CloudinaryService {
                                     "resource_type",   "image",
                                     "allowed_formats", new String[]{"jpg", "jpeg", "png", "webp"}
                             ));
-            return new UploadResult(
-                    (String) result.get("secure_url"),
-                    (String) result.get("public_id")
-            );
+            String url      = (String) result.get("secure_url");
+            String publicId = (String) result.get("public_id");
+            log.info("Cloudinary upload OK [{}] {} → {}", isVideo ? "video" : "image", folder, publicId);
+            return new UploadResult(url, publicId);
         } catch (IOException e) {
+            log.error("Cloudinary upload failed [folder={}]: {}", folder, e.getMessage());
             throw new ApiException(HttpStatus.BAD_GATEWAY,
                     "Media upload failed: " + e.getMessage(), ErrorCode.INTERNAL_ERROR);
         }
@@ -71,7 +74,7 @@ public class CloudinaryService {
         try {
             cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
         } catch (IOException e) {
-            // Non-fatal
+            log.warn("Cloudinary delete failed [publicId={}]: {}", publicId, e.getMessage());
         }
     }
 

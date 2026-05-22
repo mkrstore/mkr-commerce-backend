@@ -68,6 +68,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         } catch (JwtException ex) {
+            log.debug("Invalid JWT token: {}", ex.getMessage());
             request.setAttribute(JWT_ERROR_CODE_ATTR, "ACCESS_TOKEN_INVALID");
             chain.doFilter(request, response);
             return;

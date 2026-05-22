@@ -67,6 +67,14 @@ public class AuthService {
         }
 
         if (user.getPasswordHash() == null) {
+            // Distinguish: Google-only account vs pending invitation (never set password)
+            boolean hasPendingInvitation = invitationTokenRepository
+                    .findActiveByUser(user, Instant.now()).isPresent();
+            if (hasPendingInvitation) {
+                throw new UnauthorizedException(
+                        "Your account is not activated yet. Please check your invitation email or use 'Continue with Google' to set your password.",
+                        ErrorCode.INVITATION_TOKEN_INVALID);
+            }
             throw new UnauthorizedException("This account uses Google Sign-In. Please use 'Continue with Google'.", ErrorCode.GOOGLE_LOGIN_REQUIRED);
         }
 
@@ -237,6 +245,51 @@ public class AuthService {
 
         auditLogService.log(user.getId(), null, AuditAction.PASSWORD_RESET, null);
         log.info("Password reset successful for: {}", user.getEmail());
+    }
+
+    // ── First Password (dev env — no invitation token required) ───────────────
+
+    @Transactional
+    public AuthTokenPair setFirstPassword(FirstPasswordRequest request) {
+        String raw = request.identifier().trim();
+        User user = resolveByIdentifier(raw)
+                .orElseThrow(() -> new BadRequestException("No account found for this identifier.", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (user.getPasswordHash() != null) {
+            throw new BadRequestException("This account already has a password. Use the login form or 'Forgot Password'.", ErrorCode.INVITATION_TOKEN_INVALID);
+        }
+
+        boolean hasPendingInvitation = invitationTokenRepository
+                .findActiveByUser(user, Instant.now()).isPresent();
+        if (!hasPendingInvitation) {
+            throw new BadRequestException("No pending invitation found for this account.", ErrorCode.INVITATION_TOKEN_INVALID);
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setActive(true);
+        userRepository.save(user);
+
+        invitationTokenRepository.invalidateAllForUser(user);
+        auditLogService.log(user.getId(), null, AuditAction.INVITATION_ACCEPTED, "via first-password dev flow");
+        log.info("First password set for: {}", user.getEmail());
+        return issueTokenPair(user);
+    }
+
+    // ── Direct Password Reset (dev env — no token required) ──────────────
+
+    @Transactional
+    public AuthTokenPair directResetPassword(DirectResetRequest request) {
+        String raw = request.identifier().trim();
+        User user = resolveByIdentifier(raw)
+                .orElseThrow(() -> new BadRequestException("No account found for this identifier.", ErrorCode.RESOURCE_NOT_FOUND));
+        if (!user.isActive()) {
+            throw new BadRequestException("Account is deactivated. Contact your admin.", ErrorCode.ACCOUNT_DEACTIVATED);
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        auditLogService.log(user.getId(), null, AuditAction.PASSWORD_RESET, "via dev direct-reset");
+        log.info("Dev direct password reset for: {}", user.getEmail());
+        return issueTokenPair(user);
     }
 
     // ── Google OAuth2 ──────────────────────────────────────────────────────

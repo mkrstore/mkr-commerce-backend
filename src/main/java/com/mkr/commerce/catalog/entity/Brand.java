@@ -24,6 +24,10 @@ public class Brand extends BaseEntity {
     @Column(name = "logo_public_id", length = 200)
     private String logoPublicId;
 
+    @Column(name = "logo_is_video", columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean logoIsVideo = false;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

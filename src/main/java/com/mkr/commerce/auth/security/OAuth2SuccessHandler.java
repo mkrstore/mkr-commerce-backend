@@ -2,7 +2,9 @@ package com.mkr.commerce.auth.security;
 
 import com.mkr.commerce.auth.dto.AuthTokenPair;
 import com.mkr.commerce.auth.service.AuthService;
+import com.mkr.commerce.user.entity.InvitationToken;
 import com.mkr.commerce.user.entity.User;
+import com.mkr.commerce.user.repository.InvitationTokenRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -24,7 +28,8 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private static final String REFRESH_COOKIE = "mkr_refresh_token";
 
-    private final AuthService authService;
+    private final AuthService               authService;
+    private final InvitationTokenRepository invitationTokenRepository;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -49,6 +54,23 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 throw new IllegalStateException("Unexpected OAuth2 principal type: " + raw.getClass().getName());
             }
 
+            HttpSession session = request.getSession(false);
+            if (session != null) session.invalidate();
+
+            // Pending invitation — redirect to set-password instead of logging in
+            if (!user.isActive()) {
+                Optional<InvitationToken> invitation = invitationTokenRepository
+                        .findActiveByUser(user, Instant.now());
+                if (invitation.isPresent()) {
+                    String redirect = baseUrl + "/set-password?token=" + invitation.get().getToken();
+                    log.info("OAuth2 pending user — redirecting to set-password: {}", user.getEmail());
+                    response.sendRedirect(redirect);
+                    return;
+                }
+                response.sendRedirect(baseUrl + "/login?error=account_deactivated");
+                return;
+            }
+
             AuthTokenPair pair = authService.loginWithGoogle(user);
 
             Cookie cookie = new Cookie(REFRESH_COOKIE, pair.rawRefreshToken());
@@ -58,9 +80,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             cookie.setPath("/api/auth");
             cookie.setMaxAge((int) (refreshTokenExpiryMs / 1000));
             response.addCookie(cookie);
-
-            HttpSession session = request.getSession(false);
-            if (session != null) session.invalidate();
 
             String redirect = UriComponentsBuilder
                     .fromUriString(baseUrl + "/oauth2/callback")

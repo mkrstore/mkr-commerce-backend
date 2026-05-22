@@ -10,14 +10,17 @@ import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
 import com.mkr.commerce.common.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CategoryService {
@@ -25,6 +28,7 @@ public class CategoryService {
     private final CategoryRepository          categoryRepo;
     private final ProductRepository           productRepo;
     private final AttributeDefinitionRepository attrDefRepo;
+    private final CloudinaryService            cloudinary;
 
     // ── List (paginated flat) ─────────────────────────────────────────────────
 
@@ -76,7 +80,9 @@ public class CategoryService {
                 .isActive(true)
                 .build();
 
-        return CategoryDto.from(categoryRepo.save(category));
+        Category saved = categoryRepo.save(category);
+        log.info("Category created: '{}' [{}]", saved.getName(), saved.getId());
+        return CategoryDto.from(saved);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -107,7 +113,9 @@ public class CategoryService {
         category.setSortOrder(req.sortOrder());
         category.setActive(req.isActive());
 
-        return CategoryDto.from(categoryRepo.save(category));
+        Category saved = categoryRepo.save(category);
+        log.info("Category updated: '{}' [{}]", saved.getName(), id);
+        return CategoryDto.from(saved);
     }
 
     // ── Delete (deactivate) ───────────────────────────────────────────────────
@@ -123,6 +131,7 @@ public class CategoryService {
         }
         category.setActive(false);
         categoryRepo.save(category);
+        log.info("Category deactivated: '{}' [{}]", category.getName(), id);
     }
 
     // ── Attribute Definitions ─────────────────────────────────────────────────
@@ -155,7 +164,9 @@ public class CategoryService {
                 .sortOrder(req.sortOrder())
                 .build();
 
-        return AttributeDefinitionDto.from(attrDefRepo.save(def));
+        AttributeDefinition saved = attrDefRepo.save(def);
+        log.info("Attribute '{}' added to category [{}]", saved.getFieldKey(), categoryId);
+        return AttributeDefinitionDto.from(saved);
     }
 
     @Transactional
@@ -181,6 +192,36 @@ public class CategoryService {
         AttributeDefinition def = attrDefRepo.findByIdAndCategoryId(attrId, categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attribute definition not found."));
         attrDefRepo.delete(def);
+        log.info("Attribute '{}' deleted from category [{}]", def.getFieldKey(), categoryId);
+    }
+
+    // ── Image / Video ─────────────────────────────────────────────────────────
+
+    @Transactional
+    public CategoryDto uploadImage(UUID id, MultipartFile file, boolean isVideo) {
+        Category cat = findById(id);
+        if (cat.getImagePublicId() != null) {
+            cloudinary.delete(cat.getImagePublicId());
+        }
+        CloudinaryService.UploadResult result = cloudinary.upload(file, "mkr-commerce/categories", isVideo);
+        cat.setImageUrl(result.url());
+        cat.setImagePublicId(result.publicId());
+        cat.setImageIsVideo(isVideo);
+        log.info("Image uploaded for category [{}]: {}", id, result.publicId());
+        return CategoryDto.from(categoryRepo.save(cat));
+    }
+
+    @Transactional
+    public CategoryDto removeImage(UUID id) {
+        Category cat = findById(id);
+        if (cat.getImagePublicId() != null) {
+            cloudinary.delete(cat.getImagePublicId());
+        }
+        cat.setImageUrl(null);
+        cat.setImagePublicId(null);
+        cat.setImageIsVideo(false);
+        log.info("Image removed for category [{}]", id);
+        return CategoryDto.from(categoryRepo.save(cat));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

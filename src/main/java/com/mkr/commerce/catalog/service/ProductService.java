@@ -9,6 +9,7 @@ import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
 import com.mkr.commerce.common.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductService {
@@ -83,7 +85,9 @@ public class ProductService {
                 .status(ProductStatus.DRAFT)
                 .build();
 
-        return ProductDetailDto.from(productRepo.save(product));
+        Product saved = productRepo.save(product);
+        log.info("Product created: '{}' [{}]", saved.getName(), saved.getId());
+        return ProductDetailDto.from(saved);
     }
 
     // ── Update (PATCH-style) ───────────────────────────────────────────────────
@@ -139,7 +143,9 @@ public class ProductService {
             applyTags(product, req.tags());
         }
 
-        return ProductDetailDto.from(productRepo.save(product));
+        Product saved = productRepo.save(product);
+        log.info("Product updated: '{}' [{}]", saved.getName(), id);
+        return ProductDetailDto.from(saved);
     }
 
     // ── Deactivate (soft delete) ──────────────────────────────────────────────
@@ -149,6 +155,7 @@ public class ProductService {
         Product product = findById(id);
         product.setStatus(ProductStatus.INACTIVE);
         productRepo.save(product);
+        log.info("Product deactivated: '{}' [{}]", product.getName(), id);
     }
 
     // ── Save Attributes (replace all) ────────────────────────────────────────
@@ -203,7 +210,9 @@ public class ProductService {
                 .sortOrder(sortOrder)
                 .build();
 
-        return ProductImageDto.from(imageRepo.save(image));
+        ProductImage saved = imageRepo.save(image);
+        log.info("Media uploaded for product [{}]: {} ({})", productId, result.publicId(), resolvedType);
+        return ProductImageDto.from(saved);
     }
 
     // ── Delete Media ──────────────────────────────────────────────────────────
@@ -215,8 +224,10 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Media not found."));
 
         boolean wasPrimary = image.isPrimary();
-        cloudinary.delete(image.getPublicId());
+        String publicId = image.getPublicId();
+        cloudinary.delete(publicId);
         imageRepo.delete(image);
+        log.info("Media deleted for product [{}]: {}", productId, publicId);
 
         if (wasPrimary) {
             imageRepo.findAllByProductIdOrderBySortOrderAsc(productId)
@@ -291,6 +302,7 @@ public class ProductService {
             saved.getImages().add(newImg);
         }
 
+        log.info("Product cloned: '{}' → '{}' [{}]", source.getName(), saved.getName(), saved.getId());
         return ProductDetailDto.from(saved);
     }
 
@@ -312,7 +324,9 @@ public class ProductService {
                 .stockQty(req.stockQty())
                 .isActive(true)
                 .build();
-        return ProductVariantDto.from(variantRepo.save(variant));
+        ProductVariant saved = variantRepo.save(variant);
+        log.info("Variant added to product [{}]: SKU {}", productId, saved.getSku());
+        return ProductVariantDto.from(saved);
     }
 
     @Transactional
@@ -337,6 +351,7 @@ public class ProductService {
         ProductVariant variant = variantRepo.findByIdAndProductId(variantId, productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Variant not found."));
         variantRepo.delete(variant);
+        log.info("Variant deleted from product [{}]: SKU {}", productId, variant.getSku());
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
