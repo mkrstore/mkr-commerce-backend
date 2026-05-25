@@ -20,5 +20,8 @@ public record CreateAttributeDefinitionRequest(
         @Size(max = 30)  String unit,
         @Size(max = 500) String defaultValue,
         boolean required,
-        int     sortOrder
+        int     sortOrder,
+
+        @Size(max = 100)
+        String groupName       // e.g. "Battery", "Processor" — null = General
 ) {}

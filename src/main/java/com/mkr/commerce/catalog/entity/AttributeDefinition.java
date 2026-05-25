@@ -47,4 +47,8 @@ public class AttributeDefinition extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     @Builder.Default
     private int sortOrder = 0;
+
+    /** Optional group header, e.g. "Battery", "Processor". Null → rendered under "General". */
+    @Column(name = "group_name", length = 100)
+    private String groupName;
 }

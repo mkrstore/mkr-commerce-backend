@@ -14,13 +14,14 @@ public record AttributeDefinitionDto(
         String    unit,
         String    defaultValue,
         boolean   required,
-        int       sortOrder
+        int       sortOrder,
+        String    groupName
 ) {
     public static AttributeDefinitionDto from(AttributeDefinition a) {
         return new AttributeDefinitionDto(
                 a.getId(), a.getLabel(), a.getFieldKey(), a.getFieldType(),
                 a.getOptions(), a.getUnit(), a.getDefaultValue(),
-                a.isRequired(), a.getSortOrder()
+                a.isRequired(), a.getSortOrder(), a.getGroupName()
         );
     }
 }

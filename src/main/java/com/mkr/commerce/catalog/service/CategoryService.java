@@ -162,6 +162,7 @@ public class CategoryService {
                 .defaultValue(req.defaultValue())
                 .required(req.required())
                 .sortOrder(req.sortOrder())
+                .groupName(req.groupName() != null ? req.groupName().trim() : null)
                 .build();
 
         AttributeDefinition saved = attrDefRepo.save(def);
@@ -182,6 +183,7 @@ public class CategoryService {
         def.setDefaultValue(req.defaultValue());
         def.setRequired(req.required());
         def.setSortOrder(req.sortOrder());
+        def.setGroupName(req.groupName() != null ? req.groupName().trim() : null);
 
         return AttributeDefinitionDto.from(attrDefRepo.save(def));
     }
