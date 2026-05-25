@@ -13,16 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Runs once at startup.
- *
- * 1. Creates the employee_id_seq PostgreSQL sequence if it doesn't exist.
- *    All staff employee IDs are drawn from this sequence (1001, 1002, …).
- *
- * 2. Seeds the first SUPER_ADMIN from env/properties if no users exist yet.
- *    This is the only way to bootstrap the system — there is no public
- *    registration endpoint.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -39,7 +29,7 @@ public class DataInitializer implements ApplicationRunner {
     private String superAdminPassword;
 
     @Value("${app.seed.super-admin.name}")
-    private String superAdminName;       // "Rajesh Kumar" — split into first/last
+    private String superAdminName;
 
     @Value("${app.seed.super-admin.mobile:9999999999}")
     private String superAdminMobile;
@@ -48,10 +38,12 @@ public class DataInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         ensureEmployeeIdSequence();
+        ensureCustomerNumSequence();
+        ensureOrderNumSequence();
         seedSuperAdmin();
     }
 
-    // ── Step 1: PostgreSQL sequence ───────────────────────────────────────────
+    // ── Sequences ─────────────────────────────────────────────────────────────
 
     private void ensureEmployeeIdSequence() {
         jdbcTemplate.execute(
@@ -60,7 +52,21 @@ public class DataInitializer implements ApplicationRunner {
         log.info("DataInitializer: employee_id_seq ready.");
     }
 
-    // ── Step 2: First super admin ─────────────────────────────────────────────
+    private void ensureCustomerNumSequence() {
+        jdbcTemplate.execute(
+            "CREATE SEQUENCE IF NOT EXISTS customer_num_seq START WITH 1 INCREMENT BY 1 NO CYCLE"
+        );
+        log.info("DataInitializer: customer_num_seq ready.");
+    }
+
+    private void ensureOrderNumSequence() {
+        jdbcTemplate.execute(
+            "CREATE SEQUENCE IF NOT EXISTS order_num_seq START WITH 89 INCREMENT BY 1 NO CYCLE"
+        );
+        log.info("DataInitializer: order_num_seq ready.");
+    }
+
+    // ── Super admin ───────────────────────────────────────────────────────────
 
     private void seedSuperAdmin() {
         if (userRepository.existsByEmail(superAdminEmail.toLowerCase())) {
@@ -68,12 +74,10 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
 
-        // Split "Rajesh Kumar" → firstName="Rajesh" lastName="Kumar"
         String[] parts     = superAdminName.trim().split("\\s+", 2);
         String   firstName = parts[0];
         String   lastName  = parts.length > 1 ? parts[1] : parts[0];
-
-        Long empId = jdbcTemplate.queryForObject("SELECT nextval('employee_id_seq')", Long.class);
+        Long     empId     = jdbcTemplate.queryForObject("SELECT nextval('employee_id_seq')", Long.class);
 
         User superAdmin = User.builder()
                 .employeeId(empId)
@@ -87,7 +91,6 @@ public class DataInitializer implements ApplicationRunner {
                 .isActive(true)
                 .build();
         superAdmin.composeName();
-
         userRepository.save(superAdmin);
         log.info("DataInitializer: super admin seeded → {} [EMP-{}]", superAdminEmail, empId);
     }
