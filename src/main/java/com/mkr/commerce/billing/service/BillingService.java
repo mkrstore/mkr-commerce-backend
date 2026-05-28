@@ -146,7 +146,8 @@ public class BillingService {
             customer.setLastOrderAt(Instant.now());
 
             if (khataAmount.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal newBalance = customer.getPendingAmount().add(khataAmount);
+                BigDecimal existing   = customer.getPendingAmount() != null ? customer.getPendingAmount() : BigDecimal.ZERO;
+                BigDecimal newBalance = existing.add(khataAmount);
                 customer.setPendingAmount(newBalance);
 
                 KhataEntry entry = KhataEntry.builder()
