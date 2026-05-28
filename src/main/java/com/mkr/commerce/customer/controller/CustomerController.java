@@ -1,5 +1,7 @@
 package com.mkr.commerce.customer.controller;
 
+import com.mkr.commerce.billing.dto.CustomerBillSummaryDto;
+import com.mkr.commerce.billing.service.BillingService;
 import com.mkr.commerce.common.response.ApiResponse;
 import com.mkr.commerce.customer.dto.CustomerDetailDto;
 import com.mkr.commerce.customer.dto.CustomerSummaryDto;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final BillingService  billingService;
 
     // ── GET /api/customers ────────────────────────────────────────────────────
 
@@ -63,6 +67,13 @@ public class CustomerController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok("Customer type updated",
                 customerService.updateType(id, request.type())));
+    }
+
+    // ── GET /api/customers/{id}/bills ────────────────────────────────────────
+
+    @GetMapping("/{id}/bills")
+    public ResponseEntity<ApiResponse<List<CustomerBillSummaryDto>>> getBills(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok("Bills", billingService.getByCustomer(id)));
     }
 
     // ── PATCH /api/customers/{id}/status ─────────────────────────────────────
