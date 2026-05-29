@@ -40,7 +40,7 @@ public class ProductController {
         Sort sort = dir.equalsIgnoreCase("asc")
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100), sort);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 500), sort);
         return ResponseEntity.ok(ApiResponse.ok("Products",
                 productService.list(categoryId, brandId, status, search, pageable)));
     }

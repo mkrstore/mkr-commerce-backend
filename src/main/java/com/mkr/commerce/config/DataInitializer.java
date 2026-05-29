@@ -40,6 +40,7 @@ public class DataInitializer implements ApplicationRunner {
         ensureEmployeeIdSequence();
         ensureCustomerNumSequence();
         ensureOrderNumSequence();
+        ensureBillNumSequence();
         seedSuperAdmin();
     }
 
@@ -64,6 +65,13 @@ public class DataInitializer implements ApplicationRunner {
             "CREATE SEQUENCE IF NOT EXISTS order_num_seq START WITH 89 INCREMENT BY 1 NO CYCLE"
         );
         log.info("DataInitializer: order_num_seq ready.");
+    }
+
+    private void ensureBillNumSequence() {
+        jdbcTemplate.execute(
+            "CREATE SEQUENCE IF NOT EXISTS bill_num_seq START WITH 1001 INCREMENT BY 1 NO CYCLE"
+        );
+        log.info("DataInitializer: bill_num_seq ready.");
     }
 
     // ── Super admin ───────────────────────────────────────────────────────────
