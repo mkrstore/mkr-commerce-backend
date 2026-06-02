@@ -11,6 +11,7 @@ mvnw.cmd
 .metadata/
 .classpath
 .project
+.factorypath
 .settings/
 .sts4-cache/
 *.launch

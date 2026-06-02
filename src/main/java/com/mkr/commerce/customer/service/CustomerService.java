@@ -70,6 +70,44 @@ public class CustomerService {
         return CustomerDetailDto.from(saved);
     }
 
+    // ── Update full details ───────────────────────────────────────────────────
+
+    @Transactional
+    public CustomerDetailDto update(UUID id, com.mkr.commerce.customer.dto.UpdateCustomerRequest req) {
+        Customer customer = findOrThrow(id);
+
+        customer.setFirstName(req.firstName().trim());
+        customer.setLastName(req.lastName().trim());
+        customer.composeName();
+
+        if (req.phone() != null && !req.phone().isBlank()) {
+            // Only update phone if changed — phone is unique, skip if same
+            if (!req.phone().equals(customer.getPhone())) {
+                customer.setPhone(req.phone().trim());
+            }
+        }
+
+        if (req.email() != null && !req.email().isBlank()) {
+            customer.setEmail(req.email().toLowerCase().trim());
+        } else {
+            customer.setEmail(null);
+        }
+
+        if (req.type() != null) customer.setType(req.type());
+
+        customer.setAddressStreet(blank(req.addressStreet()));
+        customer.setAddressCity(blank(req.addressCity()));
+        customer.setAddressState(blank(req.addressState()));
+        customer.setAddressPostalCode(blank(req.addressPostalCode()));
+        customer.setAddressCountry(blank(req.addressCountry()));
+
+        Customer saved = customerRepository.save(customer);
+        log.info("Customer updated: {} [{}]", saved.getName(), saved.getCustomerId());
+        return CustomerDetailDto.from(saved);
+    }
+
+    private String blank(String s) { return (s == null || s.isBlank()) ? null : s.trim(); }
+
     // ── Update status ─────────────────────────────────────────────────────────
 
     @Transactional

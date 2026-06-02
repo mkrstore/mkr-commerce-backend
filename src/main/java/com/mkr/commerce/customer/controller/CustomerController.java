@@ -5,6 +5,7 @@ import com.mkr.commerce.billing.service.BillingService;
 import com.mkr.commerce.common.response.ApiResponse;
 import com.mkr.commerce.customer.dto.CustomerDetailDto;
 import com.mkr.commerce.customer.dto.CustomerSummaryDto;
+import com.mkr.commerce.customer.dto.UpdateCustomerRequest;
 import com.mkr.commerce.customer.dto.UpdateCustomerStatusRequest;
 import com.mkr.commerce.customer.dto.UpdateCustomerTypeRequest;
 import com.mkr.commerce.customer.enums.CustomerType;
@@ -55,6 +56,18 @@ public class CustomerController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CustomerDetailDto>> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok("Customer", customerService.getById(id)));
+    }
+
+    // ── PATCH /api/customers/{id} — full detail update ───────────────────────
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES')")
+    public ResponseEntity<ApiResponse<CustomerDetailDto>> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateCustomerRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("Customer updated",
+                customerService.update(id, request)));
     }
 
     // ── PATCH /api/customers/{id}/type ───────────────────────────────────────
