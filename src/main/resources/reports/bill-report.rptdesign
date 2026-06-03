@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE report PUBLIC "-//Eclipse BIRT//DTD Report Design//EN"
+  "http://eclipse.org/birt/contenttype/birt+xml/version_4_15">
+<report xmlns="http://www.eclipse.org/birt/2005/design" version="3.2.23"
+        id="1">
+
+  <property name="createdBy">MKR Commerce — BIRT Bill Report</property>
+  <property name="units">in</property>
+  <property name="iconFile">/templates/blank_report.gif</property>
+  <property name="bidiLayoutOrientation">auto</property>
+  <property name="imageDPI">96</property>
+
+  <!-- ══ Parameters ══════════════════════════════════════════════════════════ -->
+
+  <parameters>
+    <scalar-parameter name="shopName"    id="10"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="shopTagline" id="11"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="shopAddress" id="12"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="shopPhone"   id="13"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="shopEmail"   id="14"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="shopGstin"   id="15"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="billId"         id="20"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="customerName"   id="21"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="customerPhone"  id="22"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="paymentMethod"  id="23"><property name="dataType">string</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">""</expression></scalar-parameter>
+    <scalar-parameter name="subtotal"       id="24"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="totalDiscount"  id="25"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="gstAmount"      id="26"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="grandTotal"     id="27"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="paidNow"        id="28"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="khataAmount"    id="29"><property name="dataType">decimal</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">0</expression></scalar-parameter>
+    <scalar-parameter name="gstEnabled"     id="30"><property name="dataType">boolean</property><property name="paramType">simple</property><property name="isRequired">false</property><expression name="defaultValue" type="constant">false</expression></scalar-parameter>
+  </parameters>
+
+  <!-- ══ Page setup ══════════════════════════════════════════════════════════ -->
+
+  <page-setup>
+    <simple-master-page name="Simple MasterPage" id="2">
+      <page-footer>
+        <text id="3">
+          <property name="contentType">html</property>
+          <text-property name="content"><![CDATA[<value-of>new Date().toString()</value-of>]]></text-property>
+        </text>
+      </page-footer>
+    </simple-master-page>
+  </page-setup>
+
+  <!-- ══ Body ════════════════════════════════════════════════════════════════ -->
+
+  <body>
+
+    <!-- ── Header grid: shop info + invoice label ─────────────────────────── -->
+    <grid id="100" columns="2">
+      <property name="width">100%</property>
+
+      <column id="101"><property name="width">60%</property></column>
+      <column id="102"><property name="width">40%</property></column>
+
+      <row id="103">
+        <!-- Shop name -->
+        <cell id="104">
+          <label id="105">
+            <property name="fontSize">18pt</property>
+            <property name="fontWeight">bold</property>
+            <property name="color">#2874F0</property>
+            <expression name="labelText" type="javascript">params["shopName"].value</expression>
+          </label>
+        </cell>
+        <!-- Invoice label -->
+        <cell id="106">
+          <label id="107">
+            <property name="textAlign">right</property>
+            <property name="fontSize">14pt</property>
+            <property name="fontWeight">bold</property>
+            <property name="color">#2874F0</property>
+            <expression name="labelText" type="javascript">"TAX INVOICE"</expression>
+          </label>
+        </cell>
+      </row>
+
+      <row id="108">
+        <!-- Shop tagline + address + contact -->
+        <cell id="109">
+          <text id="110">
+            <property name="contentType">auto</property>
+            <expression name="value" type="javascript">
+              params["shopTagline"].value + "\n" +
+              params["shopAddress"].value + "\n" +
+              "Ph: " + params["shopPhone"].value + "  |  " + params["shopEmail"].value + "\n" +
+              (params["shopGstin"].value ? "GSTIN: " + params["shopGstin"].value : "")
+            </expression>
+          </text>
+        </cell>
+        <!-- Bill ID + date -->
+        <cell id="111">
+          <text id="112">
+            <property name="textAlign">right</property>
+            <property name="contentType">auto</property>
+            <expression name="value" type="javascript">
+              params["billId"].value + "\n" +
+              "Customer: " + params["customerName"].value + "\n" +
+              "Phone: " + params["customerPhone"].value + "\n" +
+              "Payment: " + params["paymentMethod"].value
+            </expression>
+          </text>
+        </cell>
+      </row>
+    </grid>
+
+    <!-- ── Horizontal rule ────────────────────────────────────────────────── -->
+    <text id="120">
+      <property name="contentType">html</property>
+      <text-property name="content"><![CDATA[<hr style="border:1.5px solid #2874F0;margin:8px 0;" />]]></text-property>
+    </text>
+
+    <!-- ── Items table (static header; data comes from scripted data source) -->
+    <table id="200">
+      <property name="width">100%</property>
+
+      <!-- Column definitions: #, Item, SKU, Qty, Unit Price, Discount, GST%, Total -->
+      <column id="201"><property name="width">5%</property></column>
+      <column id="202"><property name="width">28%</property></column>
+      <column id="203"><property name="width">12%</property></column>
+      <column id="204"><property name="width">7%</property></column>
+      <column id="205"><property name="width">13%</property></column>
+      <column id="206"><property name="width">12%</property></column>
+      <column id="207"><property name="width">10%</property></column>
+      <column id="208"><property name="width">13%</property></column>
+
+      <header>
+        <row id="210">
+          <cell id="211"><label id="212"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"#"</expression></label></cell>
+          <cell id="213"><label id="214"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"Item"</expression></label></cell>
+          <cell id="215"><label id="216"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"SKU"</expression></label></cell>
+          <cell id="217"><label id="218"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"Qty"</expression></label></cell>
+          <cell id="219"><label id="220"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"Unit Price"</expression></label></cell>
+          <cell id="221"><label id="222"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"Discount"</expression></label></cell>
+          <cell id="223"><label id="224"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"GST%"</expression></label></cell>
+          <cell id="225"><label id="226"><property name="backgroundColor">#2874F0</property><property name="color">#FFFFFF</property><property name="fontWeight">bold</property><property name="fontSize">8pt</property><expression name="labelText" type="javascript">"Total"</expression></label></cell>
+        </row>
+      </header>
+
+      <!-- Footer shows summary -->
+      <footer>
+        <row id="230">
+          <cell id="231" colSpan="6">
+            <label id="232">
+              <property name="fontWeight">bold</property>
+              <property name="fontSize">9pt</property>
+              <expression name="labelText" type="javascript">"Summary"</expression>
+            </label>
+          </cell>
+          <cell id="233">
+            <label id="234">
+              <property name="fontWeight">bold</property>
+              <property name="fontSize">9pt</property>
+              <expression name="labelText" type="javascript">"Grand Total"</expression>
+            </label>
+          </cell>
+          <cell id="235">
+            <label id="236">
+              <property name="fontWeight">bold</property>
+              <property name="fontSize">9pt</property>
+              <property name="textAlign">right</property>
+              <expression name="labelText" type="javascript">
+                "₹" + params["grandTotal"].value.toFixed(2)
+              </expression>
+            </label>
+          </cell>
+        </row>
+      </footer>
+    </table>
+
+    <!-- ── Summary block ─────────────────────────────────────────────────── -->
+    <grid id="300" columns="2">
+      <property name="width">45%</property>
+      <property name="textAlign">right</property>
+
+      <column id="301"><property name="width">55%</property></column>
+      <column id="302"><property name="width">45%</property></column>
+
+      <row id="310">
+        <cell id="311"><label id="312"><expression name="labelText" type="javascript">"Subtotal"</expression></label></cell>
+        <cell id="313"><label id="314"><property name="textAlign">right</property><expression name="labelText" type="javascript">"₹" + params["subtotal"].value.toFixed(2)</expression></label></cell>
+      </row>
+      <row id="315">
+        <cell id="316"><label id="317"><expression name="labelText" type="javascript">"Discount"</expression></label></cell>
+        <cell id="318"><label id="319"><property name="textAlign">right</property><expression name="labelText" type="javascript">"- ₹" + params["totalDiscount"].value.toFixed(2)</expression></label></cell>
+      </row>
+      <row id="320">
+        <cell id="321"><label id="322"><expression name="labelText" type="javascript">"GST"</expression></label></cell>
+        <cell id="323"><label id="324"><property name="textAlign">right</property><expression name="labelText" type="javascript">"+ ₹" + params["gstAmount"].value.toFixed(2)</expression></label></cell>
+      </row>
+      <row id="325">
+        <cell id="326">
+          <label id="327">
+            <property name="backgroundColor">#2874F0</property>
+            <property name="color">#FFFFFF</property>
+            <property name="fontWeight">bold</property>
+            <expression name="labelText" type="javascript">"GRAND TOTAL"</expression>
+          </label>
+        </cell>
+        <cell id="328">
+          <label id="329">
+            <property name="backgroundColor">#2874F0</property>
+            <property name="color">#FFFFFF</property>
+            <property name="fontWeight">bold</property>
+            <property name="textAlign">right</property>
+            <expression name="labelText" type="javascript">"₹" + params["grandTotal"].value.toFixed(2)</expression>
+          </label>
+        </cell>
+      </row>
+    </grid>
+
+    <!-- ── Payment section ────────────────────────────────────────────────── -->
+    <grid id="400" columns="3">
+      <property name="width">100%</property>
+      <property name="marginTop">12pt</property>
+
+      <column id="401"><property name="width">33%</property></column>
+      <column id="402"><property name="width">34%</property></column>
+      <column id="403"><property name="width">33%</property></column>
+
+      <row id="410">
+        <cell id="411">
+          <label id="412"><property name="fontWeight">bold</property><property name="color">#1A873E</property><expression name="labelText" type="javascript">"Paid Now: ₹" + params["paidNow"].value.toFixed(2)</expression></label>
+        </cell>
+        <cell id="413">
+          <label id="414"><property name="fontWeight">bold</property><property name="color">#D32F2F</property><expression name="labelText" type="javascript">"Khata (Due): ₹" + params["khataAmount"].value.toFixed(2)</expression></label>
+        </cell>
+        <cell id="415">
+          <label id="416"><property name="fontWeight">bold</property><property name="color">#2874F0</property><expression name="labelText" type="javascript">"Grand Total: ₹" + params["grandTotal"].value.toFixed(2)</expression></label>
+        </cell>
+      </row>
+    </grid>
+
+    <!-- ── Footer thank-you ───────────────────────────────────────────────── -->
+    <text id="500">
+      <property name="contentType">html</property>
+      <property name="marginTop">20pt</property>
+      <text-property name="content"><![CDATA[
+        <hr style="border:0.5px solid #ddd;margin:8px 0;" />
+        <p style="text-align:center;font-size:9pt;color:#9e9e9e;font-style:italic;">
+          Thank you for your purchase! This is a computer generated invoice.
+        </p>
+      ]]></text-property>
+    </text>
+
+  </body>
+
+</report>
