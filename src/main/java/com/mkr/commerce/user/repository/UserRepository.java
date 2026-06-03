@@ -22,6 +22,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
+    boolean existsByMobileNumber(String mobileNumber);
+
     /** Draws the next value from the PostgreSQL sequence — thread-safe. */
     @Query(value = "SELECT nextval('employee_id_seq')", nativeQuery = true)
     Long nextEmployeeId();

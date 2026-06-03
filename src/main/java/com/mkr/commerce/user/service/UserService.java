@@ -303,6 +303,16 @@ public class UserService {
         return auditLogService.getLogsForUser(id);
     }
 
+    // ── Uniqueness checks ─────────────────────────────────────────────────────
+
+    public boolean isEmailTaken(String email) {
+        return userRepository.existsByEmail(email.toLowerCase().trim());
+    }
+
+    public boolean isPhoneTaken(String phone) {
+        return userRepository.existsByMobileNumber(phone.trim());
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**

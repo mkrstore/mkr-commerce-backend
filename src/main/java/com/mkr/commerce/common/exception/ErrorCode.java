@@ -12,6 +12,7 @@ public enum ErrorCode {
     // ── Auth ──────────────────────────────────────────────────────────────
     ACCESS_TOKEN_EXPIRED,     // JWT signature valid but token has expired
     ACCESS_TOKEN_INVALID,     // JWT malformed, wrong signature, or missing
+    NO_SESSION,               // No refresh token cookie at all — not a prior session
     REFRESH_TOKEN_INVALID,    // Refresh token not found, revoked, or expired
     INVALID_CREDENTIALS,      // Wrong email or password
     ACCOUNT_DEACTIVATED,      // User exists but isActive = false

@@ -104,7 +104,7 @@ public class AuthService {
     @Transactional
     public AuthTokenPair refresh(String rawRefreshToken) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-            throw new UnauthorizedException("Refresh token missing.", ErrorCode.REFRESH_TOKEN_INVALID);
+            throw new UnauthorizedException("No session cookie found. Please log in.", ErrorCode.NO_SESSION);
         }
 
         RefreshToken stored = refreshTokenRepository.findByToken(rawRefreshToken)

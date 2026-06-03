@@ -167,6 +167,8 @@ public class AuthController {
     private void clearRefreshCookie(HttpServletResponse response) {
         Cookie cookie = new Cookie(REFRESH_COOKIE, "");
         cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setAttribute("SameSite", cookieSecure ? "None" : "Lax");
         cookie.setPath("/api/auth");
         cookie.setMaxAge(0);
         response.addCookie(cookie);

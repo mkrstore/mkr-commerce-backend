@@ -69,6 +69,20 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Staff list", result));
     }
 
+    // ── GET /api/users/check — real-time duplicate detection ──────────────────
+
+    @GetMapping("/check")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Boolean>>> checkUnique(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone
+    ) {
+        java.util.Map<String, Boolean> result = new java.util.HashMap<>();
+        if (email != null && !email.isBlank()) result.put("emailTaken", userService.isEmailTaken(email));
+        if (phone != null && !phone.isBlank())  result.put("phoneTaken",  userService.isPhoneTaken(phone));
+        return ResponseEntity.ok(ApiResponse.ok("Uniqueness check", result));
+    }
+
     // ── GET /api/users/{id} — single staff member ─────────────────────────────
 
     @GetMapping("/{id}")
