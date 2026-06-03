@@ -16,6 +16,8 @@ public record ProductSummaryDto(
         String        categoryName,
         String        brandName,
         BigDecimal    priceRetail,
+        BigDecimal    priceWholesale,
+        BigDecimal    priceBroker,
         BigDecimal    gstPercent,
         int           stockQty,
         ProductStatus status,
@@ -33,7 +35,8 @@ public record ProductSummaryDto(
                 p.getId(), p.getName(), p.getSlug(), p.getSku(),
                 p.getCategory().getName(),
                 p.getBrand() != null ? p.getBrand().getName() : null,
-                p.getPriceRetail(), p.getGstPercent(), p.getStockQty(),
+                p.getPriceRetail(), p.getPriceWholesale(), p.getPriceBroker(),
+                p.getGstPercent(), p.getStockQty(),
                 p.getStatus(), primaryImg, p.getCreatedAt()
         );
     }

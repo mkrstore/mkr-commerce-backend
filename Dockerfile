@@ -14,6 +14,10 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# DejaVu fonts are required for PDF generation — they support the ₹ rupee symbol
+# and other Unicode characters that the built-in Helvetica fallback cannot encode.
+RUN apk add --no-cache fontconfig ttf-dejavu
+
 COPY --from=build /app/target/mkr-commerce-backend-1.0.0.jar app.jar
 
 EXPOSE 8080
