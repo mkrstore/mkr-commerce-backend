@@ -39,6 +39,7 @@ public enum ErrorCode {
     // ── Business rules ────────────────────────────────────────────────────
     INSUFFICIENT_STOCK,       // Product stock < requested quantity
     DUPLICATE_EMAIL,          // Email already registered
+    DUPLICATE_PHONE,          // Phone already registered
     INVALID_PROMO_CODE,       // Promo code not found, expired, or over usage limit
 
     // ── Generic ───────────────────────────────────────────────────────────

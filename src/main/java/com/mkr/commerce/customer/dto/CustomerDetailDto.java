@@ -27,9 +27,10 @@ public record CustomerDetailDto(
         BigDecimal   pendingAmount,
         String       addressStreet,
         String       addressCity,
+        String       addressMandal,
+        String       addressDistrict,
         String       addressState,
-        String       addressPostalCode,
-        String       addressCountry
+        String       addressPostalCode
 ) {
     public static CustomerDetailDto from(Customer c) {
         return new CustomerDetailDto(
@@ -51,9 +52,10 @@ public record CustomerDetailDto(
                 c.getPendingAmount(),
                 c.getAddressStreet(),
                 c.getAddressCity(),
+                c.getAddressMandal(),
+                c.getAddressDistrict(),
                 c.getAddressState(),
-                c.getAddressPostalCode(),
-                c.getAddressCountry()
+                c.getAddressPostalCode()
         );
     }
 }

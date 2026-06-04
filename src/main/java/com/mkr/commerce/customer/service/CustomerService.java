@@ -1,6 +1,9 @@
 package com.mkr.commerce.customer.service;
 
+import com.mkr.commerce.common.exception.BadRequestException;
+import com.mkr.commerce.common.exception.ErrorCode;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
+import com.mkr.commerce.customer.dto.CreateCustomerRequest;
 import com.mkr.commerce.customer.dto.CustomerDetailDto;
 import com.mkr.commerce.customer.dto.CustomerSummaryDto;
 import com.mkr.commerce.customer.entity.Customer;
@@ -97,9 +100,10 @@ public class CustomerService {
 
         customer.setAddressStreet(blank(req.addressStreet()));
         customer.setAddressCity(blank(req.addressCity()));
+        customer.setAddressMandal(blank(req.addressMandal()));
+        customer.setAddressDistrict(blank(req.addressDistrict()));
         customer.setAddressState(blank(req.addressState()));
         customer.setAddressPostalCode(blank(req.addressPostalCode()));
-        customer.setAddressCountry(blank(req.addressCountry()));
 
         Customer saved = customerRepository.save(customer);
         log.info("Customer updated: {} [{}]", saved.getName(), saved.getCustomerId());
@@ -117,6 +121,50 @@ public class CustomerService {
         Customer saved = customerRepository.save(customer);
         log.info("Customer status updated: {} [{}] → {}", saved.getName(), saved.getCustomerId(),
                 active ? "ACTIVE" : "INACTIVE");
+        return CustomerDetailDto.from(saved);
+    }
+
+    // ── Create (called by staff from admin portal) ────────────────────────────
+
+    @Transactional
+    public CustomerDetailDto create(CreateCustomerRequest req) {
+        if (customerRepository.existsByPhone(req.phone())) {
+            throw new BadRequestException("Phone number is already registered to another customer", ErrorCode.DUPLICATE_PHONE);
+        }
+
+        String email = (req.email() != null && !req.email().isBlank())
+                ? req.email().toLowerCase().strip()
+                : null;
+
+        if (email != null && customerRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email address is already registered to another customer", ErrorCode.DUPLICATE_EMAIL);
+        }
+
+        Long num = customerRepository.nextCustomerNumber();
+
+        Customer customer = Customer.builder()
+                .customerNumber(num)
+                .firstName(req.firstName().trim())
+                .lastName(req.lastName().trim())
+                .email(email)
+                .phone(req.phone().trim())
+                .authMethod(AuthMethod.USER_ID)
+                .type(req.type() != null ? req.type() : CustomerType.RETAIL)
+                .isActive(true)
+                .totalOrders(0)
+                .totalSpent(BigDecimal.ZERO)
+                .pendingAmount(BigDecimal.ZERO)
+                .addressStreet(blank(req.addressStreet()))
+                .addressCity(blank(req.addressCity()))
+                .addressMandal(blank(req.addressMandal()))
+                .addressDistrict(blank(req.addressDistrict()))
+                .addressState(blank(req.addressState()))
+                .addressPostalCode(blank(req.addressPostalCode()))
+                .build();
+        customer.composeName();
+
+        Customer saved = customerRepository.save(customer);
+        log.info("New customer created by staff: {} [{}]", saved.getName(), saved.getCustomerId());
         return CustomerDetailDto.from(saved);
     }
 

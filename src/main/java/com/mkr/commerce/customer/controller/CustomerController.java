@@ -5,6 +5,7 @@ import com.mkr.commerce.billing.service.BillingService;
 import com.mkr.commerce.common.response.ApiResponse;
 import com.mkr.commerce.customer.dto.CustomerDetailDto;
 import com.mkr.commerce.customer.dto.CustomerSummaryDto;
+import com.mkr.commerce.customer.dto.CreateCustomerRequest;
 import com.mkr.commerce.customer.dto.UpdateCustomerRequest;
 import com.mkr.commerce.customer.dto.UpdateCustomerStatusRequest;
 import com.mkr.commerce.customer.dto.UpdateCustomerTypeRequest;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,17 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final BillingService  billingService;
+
+    // ── POST /api/customers ───────────────────────────────────────────────────
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES')")
+    public ResponseEntity<ApiResponse<CustomerDetailDto>> create(
+            @Valid @RequestBody CreateCustomerRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Customer created", customerService.create(request)));
+    }
 
     // ── GET /api/customers ────────────────────────────────────────────────────
 

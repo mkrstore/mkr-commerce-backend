@@ -92,7 +92,13 @@ public class Customer extends BaseEntity {
     private String addressStreet;
 
     @Column(name = "addr_city",        length = 80)
-    private String addressCity;
+    private String addressCity;       // stores Town / Village
+
+    @Column(name = "addr_mandal",      length = 80)
+    private String addressMandal;
+
+    @Column(name = "addr_district",    length = 80)
+    private String addressDistrict;
 
     @Column(name = "addr_state",       length = 80)
     private String addressState;
