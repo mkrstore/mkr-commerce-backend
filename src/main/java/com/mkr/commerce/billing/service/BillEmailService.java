@@ -10,6 +10,7 @@ import com.mkr.commerce.common.exception.ResourceNotFoundException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -33,7 +34,9 @@ public class BillEmailService {
 
     private final BillRepository      billRepository;
     private final ITextBillPdfService pdfService;
-    private final JavaMailSender      mailSender;
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
 
     @Value("${app.mail.from}")
     private String fromAddress;
@@ -52,6 +55,10 @@ public class BillEmailService {
 
         byte[] pdfBytes = pdfService.generate(billId, shop);
 
+        if (mailSender == null) {
+            log.warn("Mail sender not configured — skipping bill email to {}", toEmail);
+            return;
+        }
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
