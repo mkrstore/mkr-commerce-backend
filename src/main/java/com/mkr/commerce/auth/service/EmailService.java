@@ -1,8 +1,8 @@
 package com.mkr.commerce.auth.service;
 
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -11,10 +11,10 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
 
     @Value("${app.mail.from}")
     private String fromAddress;
@@ -56,6 +56,10 @@ public class EmailService {
     // ── Private helpers ───────────────────────────────────────────────────
 
     private boolean sendHtmlEmail(String to, String subject, String htmlBody) {
+        if (mailSender == null) {
+            log.warn("Mail sender not configured — skipping email to {}: {}", to, subject);
+            return false;
+        }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
