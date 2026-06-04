@@ -11,7 +11,7 @@
     <version>3.2.5</version>
     <relativePath/>
   </parent>
-
+ 
   <groupId>com.mkr</groupId>
   <artifactId>mkr-commerce-backend</artifactId>
   <version>1.0.0</version>
@@ -79,10 +79,16 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
-    <!-- ── HTTP Client (for reCAPTCHA verification + Resend email API) ────── -->
+    <!-- ── HTTP Client (for reCAPTCHA + WhatsApp API) ────────────────────── -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+
+    <!-- ── Email (SMTP via JavaMailSender) ───────────────────────────────── -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
     </dependency>
 
     <!-- ── Lombok ───────────────────────────────────────────────────────── -->

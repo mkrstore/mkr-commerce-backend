@@ -1,31 +1,23 @@
 package com.mkr.commerce.auth.service;
 
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${resend.api-key}")
-    private String resendApiKey;
+    private final JavaMailSender mailSender;
 
     @Value("${app.mail.from}")
     private String fromAddress;
-
-    @Value("${app.mail.no-reply:${app.mail.from}}")
-    private String noReplyAddress;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -35,61 +27,53 @@ public class EmailService {
     @Async
     public void sendPasswordResetEmail(String toEmail, String toName, String resetToken) {
         String resetLink = baseUrl + "/reset-password?token=" + resetToken;
-        String html = buildPasswordResetHtml(toName, resetLink);
-        boolean sent = sendHtmlEmail(noReplyAddress, toEmail, "Reset your MKR Commerce password", html);
+        boolean sent = sendHtmlEmail(toEmail,
+                "Reset your MKR Commerce password",
+                buildPasswordResetHtml(toName, resetLink));
         if (sent) {
             log.info("Password reset email sent to: {}", toEmail);
         } else {
-            log.warn("Password reset email failed for: {} — use this link directly: {}", toEmail, resetLink);
+            log.warn("Password reset email failed for: {} — link: {}", toEmail, resetLink);
         }
     }
 
     // ── Staff Invitation ──────────────────────────────────────────────────
 
     @Async
-    public void sendInvitationEmail(String toEmail, String toName, String invitedByName, String invitationToken) {
+    public void sendInvitationEmail(String toEmail, String toName,
+                                    String invitedByName, String invitationToken) {
         String setPasswordLink = baseUrl + "/set-password?token=" + invitationToken;
-        String html = buildInvitationHtml(toName, invitedByName, toEmail, setPasswordLink);
-        boolean sent = sendHtmlEmail(noReplyAddress, toEmail, "You've been invited to MKR Commerce Admin", html);
+        boolean sent = sendHtmlEmail(toEmail,
+                "You've been invited to MKR Commerce Admin",
+                buildInvitationHtml(toName, invitedByName, toEmail, setPasswordLink));
         if (sent) {
             log.info("Invitation email sent to: {}", toEmail);
         } else {
-            log.warn("Invitation email failed for: {} — use this link directly: {}", toEmail, setPasswordLink);
+            log.warn("Invitation email failed for: {} — link: {}", toEmail, setPasswordLink);
         }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private boolean sendHtmlEmail(String from, String to, String subject, String htmlBody) {
+    private boolean sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(resendApiKey);
-
-            Map<String, Object> payload = Map.of(
-                "from", from,
-                "to", List.of(to),
-                "subject", subject,
-                "html", htmlBody
-            );
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                "https://api.resend.com/emails", request, String.class
-            );
-
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                log.error("Resend API error for {} — status: {}, body: {}", to, response.getStatusCode(), response.getBody());
-                return false;
-            }
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setFrom(fromAddress, "MKR Commerce");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            mailSender.send(message);
             return true;
         } catch (Exception ex) {
-            log.error("Failed to send email to {} ({}): {}", to, ex.getClass().getSimpleName(), ex.getMessage());
+            log.error("Failed to send email to {} — {}: {}", to,
+                    ex.getClass().getSimpleName(), ex.getMessage());
             return false;
         }
     }
 
-    private String buildInvitationHtml(String name, String invitedBy, String email, String setPasswordLink) {
+    private String buildInvitationHtml(String name, String invitedBy,
+                                       String email, String setPasswordLink) {
         return """
             <!DOCTYPE html>
             <html>
@@ -100,7 +84,6 @@ public class EmailService {
                 .wrapper { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 12px;
                            box-shadow: 0 4px 24px rgba(0,0,0,.08); overflow: hidden; }
                 .header { background: linear-gradient(135deg, #1e1b4b, #2874F0); padding: 32px 40px; }
-                .header-inner { display: flex; align-items: center; gap: 12px; }
                 .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 700; }
                 .header p  { color: rgba(255,255,255,.70); margin: 4px 0 0; font-size: 13px; }
                 .body { padding: 36px 40px; }
@@ -128,33 +111,25 @@ public class EmailService {
                 </div>
                 <div class="body">
                   <p>Hi <strong>%s</strong>,</p>
-                  <p>
-                    <strong>%s</strong> has created a staff account for you on the
-                    <strong>MKR Commerce Admin</strong> portal. Your company email is ready:
-                  </p>
+                  <p><strong>%s</strong> has created a staff account for you on the
+                    <strong>MKR Commerce Admin</strong> portal.</p>
                   <div class="account-box">
                     <strong>%s</strong>
                     Use this email address to log in after setting your password.
                   </div>
-                  <p>
-                    Click the button below to set your password and activate your account.
-                    This link is valid for <strong>48 hours</strong> and can only be used once.
-                  </p>
+                  <p>Click the button below to set your password and activate your account.
+                    This link is valid for <strong>48 hours</strong>.</p>
                   <div class="btn-wrap">
                     <a href="%s" class="btn">Set Up My Account &rarr;</a>
                   </div>
                   <hr class="divider"/>
-                  <p class="note">
-                    If you weren't expecting this email, you can safely ignore it.
-                    No account will be activated without your action.
-                  </p>
+                  <p class="note">If you weren't expecting this, you can safely ignore it.</p>
                   <div class="fallback">
-                    Button not working?
-                    <a href="%s">Click here</a> or paste the link into your browser.
+                    Button not working? <a href="%s">Click here</a>
                   </div>
                 </div>
                 <div class="footer">
-                  &copy; MKR Commerce &nbsp;&bull;&nbsp; This is an automated message &mdash; please do not reply.
+                  &copy; MKR Commerce &nbsp;&bull;&nbsp; Automated message — do not reply.
                 </div>
               </div>
             </body>
@@ -197,26 +172,21 @@ public class EmailService {
                 </div>
                 <div class="body">
                   <p>Hi <strong>%s</strong>,</p>
-                  <p>
-                    We received a request to reset your password for the MKR Commerce Admin portal.
-                    Click the button below to set a new password.
-                  </p>
+                  <p>We received a request to reset your password. Click the button below.</p>
                   <div class="btn-wrap">
                     <a href="%s" class="btn">Reset My Password &rarr;</a>
                   </div>
                   <hr class="divider"/>
                   <p class="note">
                     This link expires in <strong>60 minutes</strong>.<br/>
-                    If you did not request a password reset, you can safely ignore this email —
-                    your password will not change.
+                    If you did not request this, ignore this email — your password won't change.
                   </p>
                   <div class="fallback">
-                    Button not working?
-                    <a href="%s">Click here</a> or paste the link into your browser.
+                    Button not working? <a href="%s">Click here</a>
                   </div>
                 </div>
                 <div class="footer">
-                  &copy; MKR Commerce &nbsp;&bull;&nbsp; This is an automated message &mdash; please do not reply.
+                  &copy; MKR Commerce &nbsp;&bull;&nbsp; Automated message — do not reply.
                 </div>
               </div>
             </body>

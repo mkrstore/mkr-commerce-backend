@@ -7,20 +7,19 @@ import com.mkr.commerce.billing.entity.Bill;
 import com.mkr.commerce.billing.repository.BillRepository;
 import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -34,10 +33,7 @@ public class BillEmailService {
 
     private final BillRepository      billRepository;
     private final ITextBillPdfService pdfService;
-    private final RestTemplate        restTemplate;
-
-    @Value("${resend.api-key}")
-    private String resendApiKey;
+    private final JavaMailSender      mailSender;
 
     @Value("${app.mail.from}")
     private String fromAddress;
@@ -56,49 +52,28 @@ public class BillEmailService {
 
         byte[] pdfBytes = pdfService.generate(billId, shop);
 
-        boolean sent = sendWithResend(toEmail, res, shop, pdfBytes);
-        if (sent) {
-            log.info("Bill email sent to {} for {}", toEmail, res.billId());
-        } else {
-            throw new RuntimeException("Failed to send email via Resend — check server logs.");
-        }
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(fromAddress, shop.shopName() != null ? shop.shopName() : "MKR Store");
+        helper.setTo(toEmail);
+        helper.setSubject("Invoice " + res.billId() + " from " + shop.shopName());
+        helper.setText(buildHtmlBody(res, shop), true);
+        helper.addAttachment(res.billId() + ".pdf",
+                new ByteArrayResource(pdfBytes), "application/pdf");
+
+        mailSender.send(message);
+        log.info("Bill email sent to {} for {}", toEmail, res.billId());
     }
 
-    private boolean sendWithResend(String toEmail, BillConfirmResponse res,
-                                   BillPdfRequest shop, byte[] pdf) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(resendApiKey);
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-            Map<String, Object> payload = Map.of(
-                "from",        fromAddress,
-                "to",          List.of(toEmail),
-                "subject",     "Your Invoice " + res.billId() + " from " + shop.shopName(),
-                "html",        buildHtmlBody(res, shop),
-                "attachments", List.of(Map.of(
-                    "filename", res.billId() + ".pdf",
-                    "content",  Base64.getEncoder().encodeToString(pdf)
-                ))
-            );
-
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                "https://api.resend.com/emails",
-                new HttpEntity<>(payload, headers),
-                String.class
-            );
-
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                log.error("Resend error for {} — status: {}, body: {}",
-                    toEmail, response.getStatusCode(), response.getBody());
-                return false;
-            }
-            return true;
-        } catch (Exception ex) {
-            log.error("Bill email failed for {} ({}): {}", toEmail,
-                ex.getClass().getSimpleName(), ex.getMessage());
-            return false;
-        }
+    private String resolveRecipient(BillEmailRequest req, BillConfirmResponse res) {
+        if (req.toEmail() != null && !req.toEmail().isBlank()) return req.toEmail().trim();
+        if (res.customer() != null && res.customer().email() != null
+                && !res.customer().email().isBlank()) return res.customer().email().trim();
+        throw new BadRequestException(
+            "No recipient email — provide toEmail or ensure the customer has an email on file.");
     }
 
     private String buildHtmlBody(BillConfirmResponse res, BillPdfRequest shop) {
@@ -116,7 +91,7 @@ public class BillEmailService {
         // Header
         sb.append("<tr><td style='background:").append(blue).append(";padding:24px 30px;'>")
           .append("<h1 style='margin:0;color:#fff;font-size:22px;'>").append(esc(shop.shopName())).append("</h1>");
-        if (shop.shopTagline() != null && !shop.shopTagline().isBlank())
+        if (ok(shop.shopTagline()))
             sb.append("<p style='margin:4px 0 0;color:#c8dcff;font-size:13px;'>").append(esc(shop.shopTagline())).append("</p>");
         sb.append("</td></tr>");
 
@@ -124,22 +99,22 @@ public class BillEmailService {
         sb.append("<tr><td style='padding:30px;'>")
           .append("<p style='margin:0 0 8px;font-size:15px;color:#212121;'>Dear <strong>").append(esc(customerName)).append("</strong>,</p>")
           .append("<p style='margin:0 0 20px;font-size:14px;color:#616161;'>Your invoice <strong>")
-          .append(esc(res.billId())).append("</strong> is attached. Summary:</p>");
+          .append(esc(res.billId())).append("</strong> is attached. Here's a summary:</p>");
 
         // Summary table
         sb.append("<table width='100%' cellpadding='8' cellspacing='0' style='border-collapse:collapse;font-size:13px;margin-bottom:24px;'>");
-        summaryRow(sb, "Invoice No.",    res.billId(),              blue,      true);
-        summaryRow(sb, "Date",           date,                      null,      false);
-        summaryRow(sb, "Payment",        res.paymentMethod(),       null,      false);
-        summaryRow(sb, "Subtotal",       fmt(res.subtotal()),       null,      false);
+        summaryRow(sb, "Invoice No.", res.billId(), blue, true);
+        summaryRow(sb, "Date",        date,           null, false);
+        summaryRow(sb, "Payment",     res.paymentMethod(), null, false);
+        summaryRow(sb, "Subtotal",    fmt(res.subtotal()), null, false);
         if (res.totalDiscount().compareTo(BigDecimal.ZERO) > 0)
-            summaryRow(sb, "Discount",   "- " + fmt(res.totalDiscount()), null, false);
+            summaryRow(sb, "Discount", "− " + fmt(res.totalDiscount()), null, false);
         if (res.gstEnabled())
-            summaryRow(sb, "GST",        "+ " + fmt(res.gstAmount()), null,    false);
-        summaryRow(sb, "Grand Total",    fmt(res.grandTotal()),     blue,      true);
+            summaryRow(sb, "GST",       "+ " + fmt(res.gstAmount()), null, false);
+        summaryRow(sb, "Grand Total", fmt(res.grandTotal()), blue, true);
         if (res.khataAmount().compareTo(BigDecimal.ZERO) > 0) {
-            summaryRow(sb, "Paid Now",   fmt(res.paidNow()),        null,      false);
-            summaryRow(sb, "Khata Due",  fmt(res.khataAmount()),    "#D32F2F", true);
+            summaryRow(sb, "Paid Now",  fmt(res.paidNow()), null, false);
+            summaryRow(sb, "Khata Due", fmt(res.khataAmount()), "#D32F2F", true);
         }
         sb.append("</table>");
 
@@ -147,35 +122,28 @@ public class BillEmailService {
         sb.append("<h3 style='font-size:13px;color:#424242;margin:0 0 8px;'>Items</h3>")
           .append("<table width='100%' cellpadding='7' cellspacing='0' style='border-collapse:collapse;font-size:12px;'>")
           .append("<tr style='background:").append(blue).append(";color:#fff;'>")
-          .append("<th align='left'>Item</th><th align='center'>Qty</th><th align='right'>Unit Price</th><th align='right'>Total</th></tr>");
+          .append("<th align='left'>Item</th><th align='center'>Qty</th>")
+          .append("<th align='right'>Unit Price</th><th align='right'>Total</th></tr>");
         var items = res.lineItems();
         for (int i = 0; i < items.size(); i++) {
-            var item  = items.get(i);
+            var  it = items.get(i);
             String bg = i % 2 == 1 ? "#f0f5ff" : "#fff";
             sb.append("<tr style='background:").append(bg).append(";'>")
-              .append("<td>").append(esc(item.productName())).append("</td>")
-              .append("<td align='center'>").append(item.qty()).append("</td>")
-              .append("<td align='right'>").append(fmt(item.unitPrice())).append("</td>")
-              .append("<td align='right'><strong>").append(fmt(item.lineTotal())).append("</strong></td></tr>");
+              .append("<td>").append(esc(it.productName())).append("</td>")
+              .append("<td align='center'>").append(it.qty()).append("</td>")
+              .append("<td align='right'>").append(fmt(it.unitPrice())).append("</td>")
+              .append("<td align='right'><strong>").append(fmt(it.lineTotal())).append("</strong></td></tr>");
         }
         sb.append("</table></td></tr>");
 
         // Footer
         sb.append("<tr><td style='background:#f8f8f8;padding:16px 30px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#9e9e9e;'>")
           .append("Thank you for shopping at ").append(esc(shop.shopName())).append("!<br>")
-          .append("Computer generated email — please do not reply.");
-        if (shop.shopPhone() != null && !shop.shopPhone().isBlank())
+          .append("This is a computer-generated invoice.");
+        if (ok(shop.shopPhone()))
             sb.append("<br>Support: ").append(esc(shop.shopPhone()));
         sb.append("</td></tr></table></td></tr></table></body></html>");
         return sb.toString();
-    }
-
-    private String resolveRecipient(BillEmailRequest req, BillConfirmResponse res) {
-        if (req.toEmail() != null && !req.toEmail().isBlank()) return req.toEmail().trim();
-        if (res.customer() != null && res.customer().email() != null
-                && !res.customer().email().isBlank()) return res.customer().email().trim();
-        throw new BadRequestException(
-            "No recipient email — provide toEmail or ensure the customer has an email on file.");
     }
 
     private void summaryRow(StringBuilder sb, String label, String value,
@@ -188,10 +156,11 @@ public class BillEmailService {
           .append("<td align='right' style='").append(valStyle).append("'>").append(esc(value)).append("</td></tr>");
     }
 
-    private String fmt(BigDecimal amount) {
-        if (amount == null) return "₹0.00";
-        return "₹" + String.format("%,.2f", amount);
+    private String fmt(BigDecimal a) {
+        return a == null ? "₹0.00" : "₹" + String.format("%,.2f", a);
     }
+
+    private boolean ok(String s) { return s != null && !s.isBlank(); }
 
     private String esc(String s) {
         if (s == null) return "";

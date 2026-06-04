@@ -4,6 +4,7 @@ import com.mkr.commerce.billing.dto.BillEmailRequest;
 import com.mkr.commerce.billing.dto.BillPdfRequest;
 import com.mkr.commerce.billing.service.BillEmailService;
 import com.mkr.commerce.billing.service.ITextBillPdfService;
+import com.mkr.commerce.billing.service.WhatsAppService;
 import com.mkr.commerce.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -26,6 +27,7 @@ public class BillReportController {
 
     private final ITextBillPdfService pdfService;
     private final BillEmailService    emailService;
+    private final WhatsAppService     whatsAppService;
 
     @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES','INVENTORY')")
@@ -57,5 +59,15 @@ public class BillReportController {
         emailService.sendBillEmail(id, request);
 
         return ResponseEntity.ok(ApiResponse.ok("Email sent", "Invoice emailed successfully."));
+    }
+
+    @PostMapping("/{id}/send-whatsapp")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES')")
+    public ResponseEntity<ApiResponse<String>> sendWhatsApp(
+            @PathVariable UUID id,
+            @RequestBody BillPdfRequest request
+    ) throws Exception {
+        whatsAppService.sendBillToWhatsApp(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("WhatsApp sent", "Invoice sent via WhatsApp."));
     }
 }
