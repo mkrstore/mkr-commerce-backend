@@ -2,6 +2,7 @@ package com.mkr.commerce.billing.controller;
 
 import com.mkr.commerce.billing.dto.BillConfirmResponse;
 import com.mkr.commerce.billing.dto.BillingConfirmRequest;
+import com.mkr.commerce.billing.dto.SerialCheckResponse;
 import com.mkr.commerce.billing.service.BillingService;
 import com.mkr.commerce.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -46,5 +47,11 @@ public class BillingController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES','INVENTORY')")
     public ResponseEntity<ApiResponse<BillConfirmResponse>> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok("Bill retrieved", billingService.getById(id)));
+    }
+
+    @GetMapping("/serials/check")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','SALES','INVENTORY')")
+    public ResponseEntity<ApiResponse<SerialCheckResponse>> checkSerial(@RequestParam String sn) {
+        return ResponseEntity.ok(ApiResponse.ok("ok", billingService.checkSerial(sn)));
     }
 }

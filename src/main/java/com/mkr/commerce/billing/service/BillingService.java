@@ -3,8 +3,10 @@ package com.mkr.commerce.billing.service;
 import com.mkr.commerce.billing.dto.BillConfirmResponse;
 import com.mkr.commerce.billing.dto.BillingConfirmRequest;
 import com.mkr.commerce.billing.dto.CustomerBillSummaryDto;
+import com.mkr.commerce.billing.dto.SerialCheckResponse;
 import com.mkr.commerce.billing.entity.Bill;
 import com.mkr.commerce.billing.entity.BillLineItem;
+import com.mkr.commerce.billing.repository.BillLineItemRepository;
 import com.mkr.commerce.billing.repository.BillRepository;
 import com.mkr.commerce.catalog.entity.Product;
 import com.mkr.commerce.catalog.repository.ProductRepository;
@@ -41,10 +43,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BillingService {
 
-    private final BillRepository     billRepository;
-    private final ProductRepository  productRepository;
-    private final CustomerRepository customerRepository;
-    private final KhataRepository    khataRepository;
+    private final BillRepository         billRepository;
+    private final BillLineItemRepository lineItemRepository;
+    private final ProductRepository      productRepository;
+    private final CustomerRepository     customerRepository;
+    private final KhataRepository        khataRepository;
 
     // ── Confirm ───────────────────────────────────────────────────────────────
 
@@ -64,9 +67,8 @@ public class BillingService {
 
         // 3. Validate existence and stock; compute line items
         List<BillLineItem> lineItems = new ArrayList<>();
-        BigDecimal subtotal      = BigDecimal.ZERO;
-        BigDecimal totalDiscount = BigDecimal.ZERO;
-        BigDecimal totalGst      = BigDecimal.ZERO;
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal totalGst = BigDecimal.ZERO;
 
         for (var item : req.items()) {
             Product p = productMap.get(item.productId());
@@ -79,23 +81,33 @@ public class BillingService {
                 );
             }
 
-            BigDecimal disc       = item.discount() != null ? item.discount() : BigDecimal.ZERO;
             BigDecimal lineNet    = item.unitPrice()
-                                        .multiply(BigDecimal.valueOf(item.qty()))
-                                        .subtract(disc);
+                                        .multiply(BigDecimal.valueOf(item.qty()));
             BigDecimal gstPercent = req.gstEnabled() ? p.getGstPercent() : BigDecimal.ZERO;
             BigDecimal gstAmount  = lineNet
                                         .multiply(gstPercent)
                                         .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             BigDecimal lineTotal  = lineNet.add(gstAmount);
 
-            subtotal      = subtotal.add(item.unitPrice().multiply(BigDecimal.valueOf(item.qty())));
-            totalDiscount = totalDiscount.add(disc);
-            totalGst      = totalGst.add(gstAmount);
+            subtotal = subtotal.add(lineNet);
+            totalGst = totalGst.add(gstAmount);
 
             // Deduct stock
             p.setStockQty(p.getStockQty() - item.qty());
             productRepository.save(p);
+
+            List<String> serials = item.serialNumbers() != null
+                    ? item.serialNumbers().stream().filter(s -> s != null && !s.isBlank()).toList()
+                    : List.of();
+
+            for (String sn : serials) {
+                SerialCheckResponse check = checkSerial(sn);
+                if (check.used()) {
+                    throw new BadRequestException(
+                        "Serial number '" + sn + "' was already sold in Bill #" + check.billNumber()
+                    );
+                }
+            }
 
             lineItems.add(BillLineItem.builder()
                     .product(p)
@@ -103,14 +115,15 @@ public class BillingService {
                     .productSku(p.getSku())
                     .qty(item.qty())
                     .unitPrice(item.unitPrice())
-                    .discount(disc)
+                    .discount(BigDecimal.ZERO)
                     .gstPercent(gstPercent)
                     .lineTotal(lineTotal)
                     .gstAmount(gstAmount)
+                    .serialNumbers(new ArrayList<>(serials))
                     .build());
         }
 
-        BigDecimal grandTotal  = subtotal.subtract(totalDiscount).add(totalGst);
+        BigDecimal grandTotal  = subtotal.add(totalGst);
         BigDecimal khataAmount = req.khataAmount();
         BigDecimal paidNow     = grandTotal.subtract(khataAmount);
 
@@ -124,7 +137,7 @@ public class BillingService {
                 .gstEnabled(req.gstEnabled())
                 .paymentMethod(req.paymentMethod())
                 .subtotal(subtotal)
-                .totalDiscount(totalDiscount)
+                .totalDiscount(BigDecimal.ZERO)
                 .gstAmount(totalGst)
                 .grandTotal(grandTotal)
                 .paidNow(paidNow)
@@ -213,6 +226,18 @@ public class BillingService {
                 .toList();
 
         return new PageImpl<>(responses, pageable, idsPage.getTotalElements());
+    }
+
+    // ── Serial number check ───────────────────────────────────────────────────
+
+    public SerialCheckResponse checkSerial(String sn) {
+        String cleaned = sn == null ? "" : sn.trim().toUpperCase();
+        if (cleaned.isEmpty()) return new SerialCheckResponse(false, null);
+        // Wrap in JSON quotes so the JSONB @> operator matches an exact array element
+        String snJson = "\"" + cleaned + "\"";
+        return lineItemRepository.findBillNumberBySerialNumber(snJson)
+                .map(n -> new SerialCheckResponse(true, n))
+                .orElse(new SerialCheckResponse(false, null));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -5,11 +5,12 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record BillLineItemRequest(
         @NotNull UUID productId,
         @Min(1)  int qty,
         @NotNull @DecimalMin("0") BigDecimal unitPrice,
-        BigDecimal discount       // null → treated as 0
+        List<String> serialNumbers   // one per unit; null treated as empty
 ) {}

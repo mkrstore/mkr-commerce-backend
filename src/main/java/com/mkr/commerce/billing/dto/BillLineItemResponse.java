@@ -3,6 +3,7 @@ package com.mkr.commerce.billing.dto;
 import com.mkr.commerce.billing.entity.BillLineItem;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record BillLineItemResponse(
@@ -14,7 +15,8 @@ public record BillLineItemResponse(
         BigDecimal discount,
         BigDecimal gstPercent,
         BigDecimal lineTotal,
-        BigDecimal gstAmount
+        BigDecimal gstAmount,
+        List<String> serialNumbers
 ) {
     public static BillLineItemResponse from(BillLineItem li) {
         return new BillLineItemResponse(
@@ -26,7 +28,8 @@ public record BillLineItemResponse(
                 li.getDiscount(),
                 li.getGstPercent(),
                 li.getLineTotal(),
-                li.getGstAmount()
+                li.getGstAmount(),
+                li.getSerialNumbers() != null ? li.getSerialNumbers() : List.of()
         );
     }
 }

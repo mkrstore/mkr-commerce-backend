@@ -1,11 +1,14 @@
 package com.mkr.commerce.billing.entity;
 
 import com.mkr.commerce.catalog.entity.Product;
+import com.mkr.commerce.common.converter.StringListConverter;
 import com.mkr.commerce.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "bill_line_items", indexes = {
@@ -43,11 +46,17 @@ public class BillLineItem extends BaseEntity {
     @Builder.Default
     private BigDecimal gstPercent = BigDecimal.ZERO;
 
-    // lineTotal = (unitPrice * qty - discount) + gstAmount
+    // lineTotal = (unitPrice * qty) + gstAmount
     @Column(name = "line_total", nullable = false, precision = 14, scale = 2)
     private BigDecimal lineTotal;
 
     @Column(name = "gst_amount", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal gstAmount = BigDecimal.ZERO;
+
+    // One serial number per unit sold (e.g. IMEI numbers). Stored as JSON array.
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "serial_numbers", columnDefinition = "TEXT")
+    @Builder.Default
+    private List<String> serialNumbers = new ArrayList<>();
 }
