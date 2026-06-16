@@ -40,6 +40,9 @@ public class LookupListService {
         LookupList list = LookupList.builder()
                 .name(req.name().trim())
                 .description(req.description() != null ? req.description().trim() : null)
+                .fieldType(req.fieldType() != null ? req.fieldType().trim() : "SELECT")
+                .required(req.required())
+                .defaultValue(req.defaultValue() != null ? req.defaultValue().trim() : null)
                 .build();
         populateValues(list, req.values());
         LookupList saved = repo.save(list);
@@ -55,6 +58,9 @@ public class LookupListService {
 
         list.setName(req.name().trim());
         list.setDescription(req.description() != null ? req.description().trim() : null);
+        list.setFieldType(req.fieldType() != null ? req.fieldType().trim() : "SELECT");
+        list.setRequired(req.required());
+        list.setDefaultValue(req.defaultValue() != null ? req.defaultValue().trim() : null);
         list.getValues().clear();
         populateValues(list, req.values());
         log.info("Lookup list '{}' updated with {} values", list.getName(), list.getValues().size());

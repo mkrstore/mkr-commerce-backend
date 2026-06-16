@@ -17,7 +17,7 @@ public interface BillLineItemRepository extends JpaRepository<BillLineItem, UUID
         "FROM bill_line_items l " +
         "JOIN bills b ON l.bill_id = b.id " +
         "WHERE l.serial_numbers IS NOT NULL " +
-        "  AND l.serial_numbers::jsonb @> CAST(:snJson AS jsonb) " +
+        "  AND CAST(l.serial_numbers AS jsonb) @> CAST(:snJson AS jsonb) " +
         "LIMIT 1",
         nativeQuery = true)
     Optional<Long> findBillNumberBySerialNumber(@Param("snJson") String snJson);

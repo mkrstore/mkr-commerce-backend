@@ -18,6 +18,17 @@ public class LookupList extends BaseEntity {
     @Column(length = 500)
     private String description;
 
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String fieldType = "SELECT";
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean required = false;
+
+    @Column(length = 200)
+    private String defaultValue;
+
     @OneToMany(mappedBy = "lookupList", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     @Builder.Default

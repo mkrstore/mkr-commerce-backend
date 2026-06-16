@@ -14,6 +14,14 @@ public record SaveLookupListRequest(
         @Size(max = 500)
         String description,
 
+        @Size(max = 20)
+        String fieldType,
+
+        boolean required,
+
+        @Size(max = 200)
+        String defaultValue,
+
         @NotNull
         List<@NotBlank @Size(max = 200) String> values
 ) {}

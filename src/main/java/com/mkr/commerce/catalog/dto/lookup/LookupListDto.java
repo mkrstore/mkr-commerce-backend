@@ -9,6 +9,9 @@ public record LookupListDto(
         UUID         id,
         String       name,
         String       description,
+        String       fieldType,
+        boolean      required,
+        String       defaultValue,
         List<String> values
 ) {
     public static LookupListDto from(LookupList l) {
@@ -16,6 +19,9 @@ public record LookupListDto(
                 l.getId(),
                 l.getName(),
                 l.getDescription(),
+                l.getFieldType(),
+                l.isRequired(),
+                l.getDefaultValue(),
                 l.getValues().stream().map(v -> v.getValue()).toList()
         );
     }
