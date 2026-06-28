@@ -9,7 +9,9 @@ import com.mkr.commerce.billing.entity.BillLineItem;
 import com.mkr.commerce.billing.repository.BillLineItemRepository;
 import com.mkr.commerce.billing.repository.BillRepository;
 import com.mkr.commerce.catalog.entity.Product;
+import com.mkr.commerce.catalog.entity.ProductVariant;
 import com.mkr.commerce.catalog.repository.ProductRepository;
+import com.mkr.commerce.catalog.repository.ProductVariantRepository;
 import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
 import com.mkr.commerce.customer.entity.Customer;
@@ -43,11 +45,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BillingService {
 
-    private final BillRepository         billRepository;
-    private final BillLineItemRepository lineItemRepository;
-    private final ProductRepository      productRepository;
-    private final CustomerRepository     customerRepository;
-    private final KhataRepository        khataRepository;
+    private final BillRepository            billRepository;
+    private final BillLineItemRepository    lineItemRepository;
+    private final ProductRepository         productRepository;
+    private final ProductVariantRepository  variantRepository;
+    private final CustomerRepository        customerRepository;
+    private final KhataRepository           khataRepository;
 
     // ── Confirm ───────────────────────────────────────────────────────────────
 
@@ -75,11 +78,37 @@ public class BillingService {
             if (p == null) {
                 throw new ResourceNotFoundException("Product not found: " + item.productId());
             }
-            if (p.getStockQty() < item.qty()) {
-                throw new BadRequestException(
-                    "Insufficient stock for '" + p.getName() + "'. Available: " + p.getStockQty()
-                );
+
+            String displayName = p.getName();
+            String displaySku  = p.getSku();
+
+            if (item.variantId() != null) {
+                // Variant product — deduct from variant stock
+                ProductVariant variant = variantRepository.findById(item.variantId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Variant not found: " + item.variantId()));
+                if (variant.getStockQty() < item.qty()) {
+                    throw new BadRequestException(
+                        "Insufficient stock for '" + p.getName() + " · " + variantLabel(variant)
+                        + "'. Available: " + variant.getStockQty()
+                    );
+                }
+                variant.setStockQty(variant.getStockQty() - item.qty());
+                variantRepository.save(variant);
+                // Keep product aggregate in sync
+                p.setStockQty(Math.max(0, p.getStockQty() - item.qty()));
+                displayName = p.getName() + " · " + variantLabel(variant);
+                displaySku  = variant.getSku();
+            } else {
+                // No variant — deduct from product stock directly
+                if (p.getStockQty() < item.qty()) {
+                    throw new BadRequestException(
+                        "Insufficient stock for '" + p.getName() + "'. Available: " + p.getStockQty()
+                    );
+                }
+                p.setStockQty(p.getStockQty() - item.qty());
             }
+
+            productRepository.save(p);
 
             BigDecimal lineNet    = item.unitPrice()
                                         .multiply(BigDecimal.valueOf(item.qty()));
@@ -91,10 +120,6 @@ public class BillingService {
 
             subtotal = subtotal.add(lineNet);
             totalGst = totalGst.add(gstAmount);
-
-            // Deduct stock
-            p.setStockQty(p.getStockQty() - item.qty());
-            productRepository.save(p);
 
             List<String> serials = item.serialNumbers() != null
                     ? item.serialNumbers().stream().filter(s -> s != null && !s.isBlank()).toList()
@@ -111,8 +136,8 @@ public class BillingService {
 
             lineItems.add(BillLineItem.builder()
                     .product(p)
-                    .productName(p.getName())
-                    .productSku(p.getSku())
+                    .productName(displayName)
+                    .productSku(displaySku)
                     .qty(item.qty())
                     .unitPrice(item.unitPrice())
                     .discount(BigDecimal.ZERO)
@@ -293,5 +318,9 @@ public class BillingService {
 
     private String safePhone(Customer c) {
         return c.getPhone() != null ? c.getPhone() : "";
+    }
+
+    private String variantLabel(ProductVariant v) {
+        return v.label();
     }
 }

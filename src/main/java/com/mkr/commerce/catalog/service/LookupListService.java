@@ -8,8 +8,10 @@ import com.mkr.commerce.catalog.entity.LookupValue;
 import com.mkr.commerce.catalog.repository.LookupListRepository;
 import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
+import com.mkr.commerce.common.response.PageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,13 @@ public class LookupListService {
 
     public List<LookupListSummaryDto> listAll() {
         return repo.findAllByOrderByNameAsc().stream().map(LookupListSummaryDto::from).toList();
+    }
+
+    public PageDto<LookupListSummaryDto> listPaged(String search, int page, int size) {
+        var pageable = PageRequest.of(page, size);
+        var result   = repo.findByNameContainingIgnoreCaseOrderByNameAsc(
+                search == null ? "" : search.trim(), pageable);
+        return PageDto.of(result.map(LookupListSummaryDto::from));
     }
 
     public LookupListDto getById(UUID id) {

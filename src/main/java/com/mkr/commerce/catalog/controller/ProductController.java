@@ -76,9 +76,9 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
-        productService.deactivate(id);
-        return ResponseEntity.ok(ApiResponse.ok("Product deactivated"));
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable UUID id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.ok("Product deleted"));
     }
 
     // ── PUT /api/products/{id}/attributes ─────────────────────────────────────

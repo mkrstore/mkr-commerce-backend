@@ -2,6 +2,7 @@ package com.mkr.commerce.catalog.entity;
 
 import com.mkr.commerce.catalog.enums.ProductStatus;
 import com.mkr.commerce.common.entity.BaseEntity;
+import com.mkr.commerce.vendor.entity.Vendor;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLOrder;
@@ -49,6 +50,10 @@ public class Product extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id")
     private Brand brand;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "preferred_vendor_id")
+    private Vendor preferredVendor;
 
     // ── Pricing (three tiers) ─────────────────────────────────────────────────
 
@@ -103,6 +108,7 @@ public class Product extends BaseEntity {
     @Builder.Default
     private List<ProductImage> images = new ArrayList<>();
 
+    @org.hibernate.annotations.BatchSize(size = 50)
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ProductVariant> variants = new ArrayList<>();

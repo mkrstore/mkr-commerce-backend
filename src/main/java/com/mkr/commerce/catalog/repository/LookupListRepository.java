@@ -1,6 +1,8 @@
 package com.mkr.commerce.catalog.repository;
 
 import com.mkr.commerce.catalog.entity.LookupList;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -10,4 +12,5 @@ public interface LookupListRepository extends JpaRepository<LookupList, UUID> {
     boolean existsByNameIgnoreCase(String name);
     boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
     List<LookupList> findAllByOrderByNameAsc();
+    Page<LookupList> findByNameContainingIgnoreCaseOrderByNameAsc(String name, Pageable pageable);
 }

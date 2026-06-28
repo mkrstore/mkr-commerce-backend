@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, UUID> {
 
-    List<ProductVariant> findAllByProductIdOrderByColorNameAscSizeAsc(UUID productId);
+    List<ProductVariant> findAllByProductIdOrderByCreatedAtAsc(UUID productId);
 
     Optional<ProductVariant> findByIdAndProductId(UUID id, UUID productId);
 

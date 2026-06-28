@@ -3,6 +3,7 @@ package com.mkr.commerce.catalog.controller;
 import com.mkr.commerce.catalog.dto.specgroup.*;
 import com.mkr.commerce.catalog.service.SpecGroupService;
 import com.mkr.commerce.common.response.ApiResponse;
+import com.mkr.commerce.common.response.PageDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,8 +25,11 @@ public class SpecGroupController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
-    public ResponseEntity<ApiResponse<List<SpecGroupSummaryDto>>> list() {
-        return ResponseEntity.ok(ApiResponse.ok("Spec groups", service.listAll()));
+    public ResponseEntity<ApiResponse<PageDto<SpecGroupSummaryDto>>> list(
+            @RequestParam(defaultValue = "")   String search,
+            @RequestParam(defaultValue = "0")  int    page,
+            @RequestParam(defaultValue = "16") int    size) {
+        return ResponseEntity.ok(ApiResponse.ok("Spec groups", service.listPaged(search, page, size)));
     }
 
     @GetMapping("/{id}")

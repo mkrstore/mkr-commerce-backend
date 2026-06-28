@@ -6,13 +6,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 public record UpdateVariantRequest(
-        @NotBlank @Size(max = 100) String     sku,
-        @Size(max = 80)            String     colorName,
-        @Size(max = 10)            String     colorHex,
-        @Size(max = 40)            String     size,
-        @DecimalMin("0.01")        BigDecimal priceOverride,
-        @Min(0)                    int        stockQty,
-        boolean                              isActive
+        @NotBlank @Size(max = 100) String              sku,
+        Map<String, String>        attributes,
+        @DecimalMin("0.01")        BigDecimal          priceOverride,
+        BigDecimal                 priceWholesale,
+        BigDecimal                 priceBroker,
+        @Min(0)                    int                 stockQty,
+        boolean                    isActive
 ) {}

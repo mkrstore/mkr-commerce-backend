@@ -5,8 +5,10 @@ import com.mkr.commerce.catalog.entity.*;
 import com.mkr.commerce.catalog.repository.*;
 import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
+import com.mkr.commerce.common.response.PageDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,14 @@ public class SpecGroupService {
         return specGroupRepo.findAllByOrderByNameAsc().stream()
                 .map(SpecGroupSummaryDto::from)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PageDto<SpecGroupSummaryDto> listPaged(String search, int page, int size) {
+        var pageable = PageRequest.of(page, size);
+        var result   = specGroupRepo.findByNameContainingIgnoreCaseOrderByNameAsc(
+                search == null ? "" : search.trim(), pageable);
+        return PageDto.of(result.map(SpecGroupSummaryDto::from));
     }
 
     @Transactional(readOnly = true)

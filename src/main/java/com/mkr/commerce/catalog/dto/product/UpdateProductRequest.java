@@ -20,6 +20,7 @@ public record UpdateProductRequest(
         @Size(max = 50)  String        barcode,
                          UUID          categoryId,
                          UUID          brandId,
+                         UUID          preferredVendorId,
 
         @DecimalMin("0.01") BigDecimal priceRetail,
         @DecimalMin("0.01") BigDecimal priceWholesale,

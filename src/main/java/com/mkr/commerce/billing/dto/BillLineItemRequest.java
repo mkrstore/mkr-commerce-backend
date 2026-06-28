@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public record BillLineItemRequest(
         @NotNull UUID productId,
+        UUID         variantId,      // null for products without variants
         @Min(1)  int qty,
         @NotNull @DecimalMin("0") BigDecimal unitPrice,
         List<String> serialNumbers   // one per unit; null treated as empty

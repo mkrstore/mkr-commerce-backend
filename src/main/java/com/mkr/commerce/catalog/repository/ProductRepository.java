@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,4 +40,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     boolean existsByCategoryId(UUID categoryId);
     boolean existsByBrandId(UUID brandId);
+
+    List<Product> findByStockQtyLessThanEqualAndStatusOrderByStockQtyAscNameAsc(int stockQty, ProductStatus status);
+
+    List<Product> findByPreferredVendorIdOrderByNameAsc(UUID vendorId);
 }

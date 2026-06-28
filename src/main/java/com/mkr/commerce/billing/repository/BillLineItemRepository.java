@@ -10,6 +10,8 @@ import java.util.UUID;
 
 public interface BillLineItemRepository extends JpaRepository<BillLineItem, UUID> {
 
+    boolean existsByProduct_Id(UUID productId);
+
     // Exact JSON-array membership check — "SN123" must appear as a value in the array,
     // not just as a substring.  Uses the PostgreSQL JSONB containment operator (@>).
     @Query(value =

@@ -3,8 +3,12 @@ package com.mkr.commerce.catalog.entity;
 import com.mkr.commerce.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Entity
 @Table(name = "product_variant", indexes = {
@@ -21,17 +25,19 @@ public class ProductVariant extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String sku;
 
-    @Column(name = "color_name", length = 80)
-    private String colorName;
-
-    @Column(name = "color_hex", length = 10)
-    private String colorHex;
-
-    @Column(length = 40)
-    private String size;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attributes", columnDefinition = "jsonb")
+    @Builder.Default
+    private Map<String, String> attributes = new LinkedHashMap<>();
 
     @Column(name = "price_override", precision = 12, scale = 2)
     private BigDecimal priceOverride;
+
+    @Column(name = "price_wholesale", precision = 12, scale = 2)
+    private BigDecimal priceWholesale;
+
+    @Column(name = "price_broker", precision = 12, scale = 2)
+    private BigDecimal priceBroker;
 
     @Column(name = "stock_qty", nullable = false)
     @Builder.Default
@@ -40,4 +46,9 @@ public class ProductVariant extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
+
+    public String label() {
+        if (attributes == null || attributes.isEmpty()) return sku;
+        return String.join(" / ", attributes.values());
+    }
 }

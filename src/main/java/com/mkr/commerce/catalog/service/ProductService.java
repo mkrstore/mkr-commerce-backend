@@ -5,6 +5,10 @@ import com.mkr.commerce.catalog.entity.*;
 import com.mkr.commerce.catalog.enums.MediaType;
 import com.mkr.commerce.catalog.enums.ProductStatus;
 import com.mkr.commerce.catalog.repository.*;
+import com.mkr.commerce.billing.repository.BillLineItemRepository;
+import com.mkr.commerce.inventory.repository.InventoryTransactionRepository;
+import com.mkr.commerce.vendor.entity.Vendor;
+import com.mkr.commerce.vendor.repository.VendorRepository;
 import com.mkr.commerce.common.exception.BadRequestException;
 import com.mkr.commerce.common.exception.ResourceNotFoundException;
 import com.mkr.commerce.common.util.SlugUtils;
@@ -18,21 +22,25 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
-    private final ProductRepository             productRepo;
-    private final CategoryRepository            categoryRepo;
-    private final BrandRepository               brandRepo;
-    private final TagRepository                 tagRepo;
-    private final ProductImageRepository        imageRepo;
-    private final ProductVariantRepository      variantRepo;
-    private final ProductAttributeRepository    attributeRepo;
-    private final AttributeDefinitionRepository attrDefRepo;
-    private final CloudinaryService             cloudinary;
+    private final ProductRepository                 productRepo;
+    private final CategoryRepository                categoryRepo;
+    private final BrandRepository                   brandRepo;
+    private final VendorRepository                  vendorRepo;
+    private final TagRepository                     tagRepo;
+    private final ProductImageRepository            imageRepo;
+    private final ProductVariantRepository          variantRepo;
+    private final ProductAttributeRepository        attributeRepo;
+    private final AttributeDefinitionRepository     attrDefRepo;
+    private final InventoryTransactionRepository    txRepo;
+    private final BillLineItemRepository            billLineItemRepo;
+    private final CloudinaryService                 cloudinary;
 
     // ── List ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +134,15 @@ public class ProductService {
                     .orElseThrow(() -> new ResourceNotFoundException("Brand not found."));
             product.setBrand(brand);
         }
+        if (req.preferredVendorId() != null) {
+            if (req.preferredVendorId().toString().equals("00000000-0000-0000-0000-000000000000")) {
+                product.setPreferredVendor(null);
+            } else {
+                Vendor vendor = vendorRepo.findById(req.preferredVendorId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Vendor not found."));
+                product.setPreferredVendor(vendor);
+            }
+        }
 
         if (req.priceRetail()     != null) product.setPriceRetail(req.priceRetail());
         if (req.priceWholesale()  != null) product.setPriceWholesale(req.priceWholesale());
@@ -156,6 +173,35 @@ public class ProductService {
         product.setStatus(ProductStatus.INACTIVE);
         productRepo.save(product);
         log.info("Product deactivated: '{}' [{}]", product.getName(), id);
+    }
+
+    // ── Hard Delete ───────────────────────────────────────────────────────────
+
+    @Transactional
+    public void deleteProduct(UUID id) {
+        Product product = findById(id);
+
+        if (billLineItemRepo.existsByProduct_Id(id)) {
+            throw new BadRequestException(
+                "Cannot delete '" + product.getName() + "' — it appears in existing bills. Deactivate it instead.");
+        }
+
+        // Delete inventory transactions first (FK from tx → product, non-nullable)
+        txRepo.deleteByProductId(id);
+
+        // Delete media from Cloudinary then DB
+        List<ProductImage> images = imageRepo.findAllByProductIdOrderBySortOrderAsc(id);
+        for (ProductImage img : images) {
+            try { cloudinary.delete(img.getPublicId()); } catch (Exception ignored) {}
+        }
+        imageRepo.deleteAll(images);
+
+        // Delete attributes and variants
+        attributeRepo.deleteAllByProductId(id);
+        variantRepo.deleteAll(variantRepo.findAllByProductIdOrderByCreatedAtAsc(id));
+
+        productRepo.delete(product);
+        log.info("Product permanently deleted: '{}' [{}]", product.getName(), id);
     }
 
     // ── Save Attributes (replace all) ────────────────────────────────────────
@@ -311,16 +357,15 @@ public class ProductService {
     @Transactional
     public ProductVariantDto addVariant(UUID productId, CreateVariantRequest req) {
         Product product = findById(productId);
-        if (variantRepo.existsBySku(req.sku())) {
-            throw new BadRequestException("Variant SKU '" + req.sku() + "' is already in use.");
-        }
+        String sku = resolveVariantSku(product, req.sku(), req.attributes(), null);
+        Map<String, String> attrs = req.attributes() != null ? req.attributes() : new LinkedHashMap<>();
         ProductVariant variant = ProductVariant.builder()
                 .product(product)
-                .sku(req.sku().trim().toUpperCase())
-                .colorName(req.colorName())
-                .colorHex(req.colorHex())
-                .size(req.size())
+                .sku(sku)
+                .attributes(attrs)
                 .priceOverride(req.priceOverride())
+                .priceWholesale(req.priceWholesale())
+                .priceBroker(req.priceBroker())
                 .stockQty(req.stockQty())
                 .isActive(true)
                 .build();
@@ -337,13 +382,38 @@ public class ProductService {
             throw new BadRequestException("Variant SKU '" + req.sku() + "' is already in use.");
         }
         variant.setSku(req.sku().trim().toUpperCase());
-        variant.setColorName(req.colorName());
-        variant.setColorHex(req.colorHex());
-        variant.setSize(req.size());
+        variant.setAttributes(req.attributes() != null ? req.attributes() : new LinkedHashMap<>());
         variant.setPriceOverride(req.priceOverride());
+        variant.setPriceWholesale(req.priceWholesale());
+        variant.setPriceBroker(req.priceBroker());
         variant.setStockQty(req.stockQty());
         variant.setActive(req.isActive());
         return ProductVariantDto.from(variantRepo.save(variant));
+    }
+
+    private String resolveVariantSku(Product product, String requestedSku,
+                                     Map<String, String> attributes, UUID excludeId) {
+        if (requestedSku != null && !requestedSku.isBlank()) {
+            String sku = requestedSku.trim().toUpperCase();
+            boolean exists = excludeId == null
+                    ? variantRepo.existsBySku(sku)
+                    : variantRepo.existsBySkuAndIdNot(sku, excludeId);
+            if (exists) throw new BadRequestException("Variant SKU '" + sku + "' is already in use.");
+            return sku;
+        }
+        String attrPart = (attributes == null || attributes.isEmpty()) ? "" :
+                attributes.values().stream()
+                        .map(v -> v.replaceAll("[^A-Za-z0-9]", "").toUpperCase())
+                        .filter(v -> !v.isEmpty())
+                        .collect(Collectors.joining("-"));
+        String base = product.getSku() + (attrPart.isEmpty() ? "" : "-" + attrPart);
+        String candidate = base.substring(0, Math.min(90, base.length()));
+        if (!variantRepo.existsBySku(candidate)) return candidate;
+        for (int i = 2; i <= 99; i++) {
+            String suffixed = candidate + "-" + i;
+            if (!variantRepo.existsBySku(suffixed)) return suffixed;
+        }
+        return candidate + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 
     @Transactional

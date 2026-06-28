@@ -5,6 +5,7 @@ import com.mkr.commerce.catalog.dto.lookup.LookupListSummaryDto;
 import com.mkr.commerce.catalog.dto.lookup.SaveLookupListRequest;
 import com.mkr.commerce.catalog.service.LookupListService;
 import com.mkr.commerce.common.response.ApiResponse;
+import com.mkr.commerce.common.response.PageDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,8 +25,17 @@ public class LookupListController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
-    public ResponseEntity<ApiResponse<List<LookupListSummaryDto>>> list() {
-        return ResponseEntity.ok(ApiResponse.ok("Lookup lists", service.listAll()));
+    public ResponseEntity<ApiResponse<PageDto<LookupListSummaryDto>>> list(
+            @RequestParam(defaultValue = "")  String search,
+            @RequestParam(defaultValue = "0") int    page,
+            @RequestParam(defaultValue = "16") int   size) {
+        return ResponseEntity.ok(ApiResponse.ok("Fields", service.listPaged(search, page, size)));
+    }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','INVENTORY')")
+    public ResponseEntity<ApiResponse<List<LookupListSummaryDto>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok("All fields", service.listAll()));
     }
 
     @GetMapping("/{id}")
